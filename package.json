@@ -1,0 +1,38 @@
+{
+  "name": "clinicos",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "db:check": "node tools/db-check.mjs",
+    "db:setup": "node tools/db-setup.mjs",
+    "rls:check": "node tools/rls-check.mjs"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.3.16",
+    "@node-rs/argon2": "^2.2.2",
+    "clsx": "^2.1.1",
+    "jose": "^6.2.15",
+    "lucide-react": "^1.70.0",
+    "next": "16.4.5",
+    "pg": "^8.23.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.7.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.5",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.11.10",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^5.9.0"
+  }
+}
