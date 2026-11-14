@@ -15,6 +15,7 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.3.16",
     "@node-rs/argon2": "^2.2.2",
+    "@vercel/speed-insights": "^2.1.0",
     "clsx": "^2.1.1",
     "jose": "^6.2.15",
     "lucide-react": "^1.70.0",
