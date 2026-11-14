@@ -1,4 +1,5 @@
 # ClinicOS
+<<<<<<< HEAD
 
 SaaS multi-tenant para gestão integrada de clínicas médicas no Brasil.
 
@@ -93,3 +94,6 @@ Veja [`.env.example`](.env.example). Em produção é obrigatório `DATABASE_URL
 - WhatsApp: Meta Cloud API com modo manual de fallback.
 - IA: provedor agnóstico, sempre no backend, sem diagnóstico/prescrição autônoma e com revisão humana.
 - Assinatura de documentos médicos: certificados A1/A3 ou ICP-Brasil — a definir com o responsável técnico.
+=======
+Sistema de gestão de clínicas e hospitais
+>>>>>>> 0f9e0ef816df10cc7ee202b7742f37e05089a4d7
