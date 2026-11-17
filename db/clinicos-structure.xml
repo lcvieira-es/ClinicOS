@@ -1,0 +1,3017 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ClinicOS · estrutura do banco de dados (PostgreSQL 16+) para Supabase -->
+<!-- Gerado a partir de db/migrations/*.sql + db/dev-seed.sql -->
+<database name="clinicos" engine="PostgreSQL" minVersion="16">
+  <description>SaaS multi-tenant para gestão de clínicas médicas (Brasil). 52 tabelas, RLS em todas as tabelas sensíveis, auditoria com hash encadeado.</description>
+  <extensions>
+    <extension name="pgcrypto" />
+    <extension name="pg_trgm" />
+    <extension name="btree_gist" />
+  </extensions>
+  <roles>
+    <role name="clinicos_app" login="true" bypassrls="false" note="Papel de runtime, sem BYPASSRLS, com DML apenas." />
+  </roles>
+  <migrations count="17">
+    <migration order="1" file="001_extensions_enums.sql">
+      <sql><![CDATA[-- =============================================================================
+-- ClinicOS · 001 · Extensões e tipos enumerados
+-- PostgreSQL 16+
+-- =============================================================================
+
+-- Extensões opcionais. Em produção (PostgreSQL/Supabase) todas devem existir.
+-- O bloco tolera ambientes de teste embarcados que não as disponibilizam.
+do $$
+begin
+  create extension if not exists pg_trgm;
+exception when others then
+  raise notice 'pg_trgm indisponível neste ambiente: %', sqlerrm;
+end $$;
+
+do $$
+begin
+  create extension if not exists btree_gist;
+exception when others then
+  raise notice 'btree_gist indisponível neste ambiente: %', sqlerrm;
+end $$;
+
+-- Perfis da plataforma -------------------------------------------------------
+create type app_role as enum (
+  'platform_admin',
+  'clinic_admin',
+  'doctor',
+  'receptionist',
+  'finance',
+  'patient'
+);
+
+-- Plataforma / clínica -------------------------------------------------------
+create type clinic_status as enum ('em_implantacao', 'ativa', 'suspensa', 'cancelada');
+create type unit_type as enum ('matriz', 'filial', 'consultorio');
+create type membership_status as enum ('convidado', 'ativo', 'suspenso', 'removido');
+create type invite_status as enum ('pendente', 'aceito', 'expirado', 'cancelado');
+
+-- Pessoas --------------------------------------------------------------------
+create type patient_status as enum ('ativo', 'inativo', 'arquivado');
+create type sex_type as enum ('feminino', 'masculino', 'intersexo', 'nao_informado');
+create type consent_type as enum ('tratamento_dados', 'compartilhamento', 'telemedicina', 'marketing');
+
+-- Agenda / atendimento -------------------------------------------------------
+create type appointment_type as enum ('consulta', 'retorno', 'procedimento', 'teleconsulta', 'avaliacao');
+create type appointment_status as enum (
+  'agendada', 'confirmada', 'aguardando', 'em_atendimento',
+  'realizada', 'cancelada', 'faltou'
+);
+create type payment_method as enum (
+  'particular', 'pix', 'dinheiro', 'cartao_credito', 'cartao_debito',
+  'boleto', 'convenio', 'transferencia', 'outro'
+);
+
+-- Documentação clínica -------------------------------------------------------
+create type medical_record_status as enum ('rascunho', 'assinado', 'retificado', 'cancelado');
+create type clinical_note_type as enum ('anamnese', 'evolucao', 'procedimento', 'adendo');
+create type clinical_note_status as enum ('rascunho', 'assinado', 'retificado', 'cancelado');
+create type allergy_severity as enum ('leve', 'moderada', 'grave');
+create type prescription_type as enum ('simples', 'controle_especial', 'antimicrobiano', 'notificacao_a');
+create type prescription_status as enum ('rascunho', 'emitida', 'cancelada');
+create type signature_method as enum ('interno_hash', 'icp_brasil', 'certificado_digital');
+
+-- Exames ---------------------------------------------------------------------
+create type exam_priority as enum ('rotina', 'urgente', 'emergencia');
+create type exam_order_status as enum ('solicitado', 'coletado', 'em_analise', 'resultado_disponivel', 'entregue', 'cancelado');
+create type exam_item_status as enum ('solicitado', 'coletado', 'em_analise', 'resultado_disponivel', 'cancelado');
+create type exam_result_status as enum ('preliminar', 'liberado', 'retificado', 'cancelado');
+
+-- Convênios ------------------------------------------------------------------
+create type claim_status as enum ('rascunho', 'enviada', 'em_analise', 'aprovada', 'glosada', 'paga', 'cancelada');
+
+-- Financeiro / estoque -------------------------------------------------------
+create type transaction_type as enum ('receita', 'despesa');
+create type transaction_status as enum ('pendente', 'pago', 'atrasado', 'cancelado');
+create type inventory_status as enum ('ativo', 'inativo');
+create type inventory_movement_type as enum ('entrada', 'saida', 'ajuste', 'perda');
+
+-- Assinaturas / plataforma ---------------------------------------------------
+create type subscription_status as enum ('em_teste', 'ativa', 'inadimplente', 'suspensa', 'vencida', 'cancelada');
+create type billing_period as enum ('mensal', 'anual');
+create type gateway_type as enum ('manual', 'stripe', 'asaas', 'pagseguro', 'mercadopago');
+create type invoice_status as enum ('aberta', 'paga', 'vencida', 'cancelada', 'reembolsada');
+create type module_category as enum ('operacao', 'clinico', 'gestao', 'cadastros', 'relacionamento', 'sistema', 'plataforma');
+create type module_audience as enum ('clinica', 'plataforma');
+create type module_source as enum ('plano', 'adicional', 'cortesia');
+
+-- Comunicação / IA / auditoria ----------------------------------------------
+create type notification_type as enum ('consulta', 'financeiro', 'exame', 'sistema', 'whatsapp');
+create type whatsapp_direction as enum ('enviada', 'recebida');
+create type whatsapp_status as enum ('pendente', 'enviada', 'entregue', 'lida', 'erro');
+create type ai_feature as enum ('resumo', 'apoio_documentacao', 'busca', 'organizacao', 'outro');
+create type ai_status as enum ('pendente', 'concluida', 'erro', 'bloqueada');
+create type audit_action as enum ('insert', 'update', 'delete', 'login', 'logout', 'view', 'export', 'sign', 'payment');
+]]></sql>
+    </migration>
+    <migration order="2" file="002_platform_tenant.sql">
+      <sql><![CDATA[-- =============================================================================
+-- ClinicOS · 002 · Plataforma, organizações e pessoas
+-- =============================================================================
+
+-- Identidade global -----------------------------------------------------------
+create table users (
+  id                uuid primary key default gen_random_uuid(),
+  email             text not null,
+  password_hash     text,
+  full_name         text not null,
+  phone             text,
+  avatar_url        text,
+  status            text not null default 'ativo'
+                    check (status in ('ativo', 'inativo', 'bloqueado')),
+  email_verified_at timestamptz,
+  last_login_at     timestamptz,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+create unique index users_email_uidx on users (lower(email));
+
+create table platform_admins (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null unique references users(id) on delete cascade,
+  status      text not null default 'ativo' check (status in ('ativo', 'inativo')),
+  granted_by  uuid references users(id) on delete set null,
+  created_at  timestamptz not null default now()
+);
+
+-- Catálogo comercial ----------------------------------------------------------
+create table plans (
+  id                    uuid primary key default gen_random_uuid(),
+  name                  text not null,
+  slug                  text not null unique,
+  description           text,
+  monthly_price         numeric(12,2) not null default 0 check (monthly_price >= 0),
+  annual_price          numeric(12,2) not null default 0 check (annual_price >= 0),
+  user_limit            integer not null default 0 check (user_limit >= 0),
+  professional_limit    integer not null default 0 check (professional_limit >= 0),
+  unit_limit            integer not null default 0 check (unit_limit >= 0),
+  patient_limit         integer not null default 0 check (patient_limit >= 0),
+  storage_gb            integer not null default 0 check (storage_gb >= 0),
+  ai_interaction_limit  integer not null default 0 check (ai_interaction_limit >= 0),
+  message_limit         integer not null default 0 check (message_limit >= 0),
+  trial_days            integer not null default 14 check (trial_days >= 0),
+  is_active             boolean not null default true,
+  sort_order            integer not null default 0,
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now()
+);
+
+create table modules (
+  id          uuid primary key default gen_random_uuid(),
+  key         text not null unique,
+  name        text not null,
+  description text,
+  category    module_category not null,
+  audience    module_audience not null default 'clinica',
+  icon        text,
+  route       text,
+  is_core     boolean not null default false,
+  is_plan     boolean not null default true,
+  is_active   boolean not null default true,
+  sort_order  integer not null default 0,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+create table module_features (
+  id          uuid primary key default gen_random_uuid(),
+  module_id   uuid not null references modules(id) on delete cascade,
+  key         text not null,
+  name        text not null,
+  description text,
+  sort_order  integer not null default 0,
+  created_at  timestamptz not null default now(),
+  unique (module_id, key)
+);
+
+create table plan_modules (
+  plan_id    uuid not null references plans(id) on delete cascade,
+  module_id  uuid not null references modules(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (plan_id, module_id)
+);
+
+create table platform_settings (
+  key         text primary key,
+  value       jsonb not null default '{}'::jsonb,
+  updated_by  uuid references users(id) on delete set null,
+  updated_at  timestamptz not null default now()
+);
+
+-- Organização (tenant) --------------------------------------------------------
+create table clinics (
+  id                              uuid primary key default gen_random_uuid(),
+  legal_name                      text not null,
+  trade_name                      text,
+  display_name                    text not null,
+  cnpj                            text,
+  state_registration              text,
+  email                           text,
+  phone                           text,
+  whatsapp                        text,
+  cep                             text,
+  address                         text,
+  address_number                  text,
+  complement                      text,
+  neighborhood                    text,
+  city                            text,
+  state                           char(2),
+  legal_representative_name       text,
+  legal_representative_cpf        text,
+  legal_representative_email      text,
+  legal_representative_phone      text,
+  status                          clinic_status not null default 'em_implantacao',
+  portal_slug                     text unique,
+  logo_url                        text,
+  timezone                        text not null default 'America/Sao_Paulo',
+  notes                           text,
+  settings                        jsonb not null default '{}'::jsonb,
+  created_at                      timestamptz not null default now(),
+  updated_at                      timestamptz not null default now(),
+  constraint clinics_cnpj_fmt check (cnpj is null or cnpj ~ '^[0-9]{14}$'),
+  constraint clinics_cpf_fmt check (legal_representative_cpf is null or legal_representative_cpf ~ '^[0-9]{11}$'),
+  constraint clinics_state_fmt check (state is null or state ~ '^[A-Z]{2}$')
+);
+
+create table clinic_units (
+  id             uuid primary key default gen_random_uuid(),
+  clinic_id      uuid not null references clinics(id) on delete cascade,
+  name           text not null,
+  type           unit_type not null default 'filial',
+  internal_code  text,
+  phone          text,
+  email          text,
+  cep            text,
+  address        text,
+  address_number text,
+  complement     text,
+  neighborhood   text,
+  city           text,
+  state          char(2),
+  manager_name   text,
+  opening_hours  text,
+  is_headquarters boolean not null default false,
+  status         text not null default 'ativa' check (status in ('ativa', 'inativa')),
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now(),
+  constraint clinic_units_state_fmt check (state is null or state ~ '^[A-Z]{2}$')
+);
+create unique index clinic_units_internal_code_uidx
+  on clinic_units (clinic_id, internal_code) where internal_code is not null;
+
+create table clinic_memberships (
+  id          uuid primary key default gen_random_uuid(),
+  clinic_id   uuid not null references clinics(id) on delete cascade,
+  user_id     uuid not null references users(id) on delete cascade,
+  role        app_role not null check (role in ('clinic_admin', 'doctor', 'receptionist', 'finance')),
+  status      membership_status not null default 'convidado',
+  job_title   text,
+  hired_at    date,
+  invited_by  uuid references users(id) on delete set null,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  unique (clinic_id, user_id)
+);
+
+create table membership_units (
+  membership_id uuid not null references clinic_memberships(id) on delete cascade,
+  unit_id       uuid not null references clinic_units(id) on delete cascade,
+  clinic_id     uuid not null references clinics(id) on delete cascade,
+  primary key (membership_id, unit_id)
+);
+
+create table user_invites (
+  id          uuid primary key default gen_random_uuid(),
+  clinic_id   uuid not null references clinics(id) on delete cascade,
+  email       text not null,
+  full_name   text,
+  role        app_role not null check (role in ('clinic_admin', 'doctor', 'receptionist', 'finance')),
+  token_hash  text not null unique,
+  status      invite_status not null default 'pendente',
+  expires_at  timestamptz not null,
+  accepted_at timestamptz,
+  invited_by  uuid references users(id) on delete set null,
+  created_at  timestamptz not null default now()
+);
+
+-- Profissionais ---------------------------------------------------------------
+create table professionals (
+  id                   uuid primary key default gen_random_uuid(),
+  clinic_id            uuid not null references clinics(id) on delete cascade,
+  user_id              uuid references users(id) on delete set null,
+  full_name            text not null,
+  council              text,
+  council_number       text,
+  council_state        char(2),
+  specialties          text[] not null default '{}',
+  phone                text,
+  email                text,
+  consultation_price   numeric(12,2) not null default 0 check (consultation_price >= 0),
+  default_duration_min integer not null default 30 check (default_duration_min > 0),
+  commission_percent   numeric(5,2) not null default 0 check (commission_percent between 0 and 100),
+  calendar_color       text not null default '#0EA5E9',
+  status               text not null default 'ativo' check (status in ('ativo', 'inativo')),
+  notes                text,
+  created_at           timestamptz not null default now(),
+  updated_at           timestamptz not null default now(),
+  constraint professionals_state_fmt check (council_state is null or council_state ~ '^[A-Z]{2}$')
+);
+create unique index professionals_council_uidx
+  on professionals (clinic_id, council, council_number, council_state)
+  where council is not null and council_number is not null and council_state is not null;
+
+create table professional_units (
+  professional_id uuid not null references professionals(id) on delete cascade,
+  unit_id         uuid not null references clinic_units(id) on delete cascade,
+  clinic_id       uuid not null references clinics(id) on delete cascade,
+  primary key (professional_id, unit_id)
+);
+
+create table professional_schedules (
+  id            uuid primary key default gen_random_uuid(),
+  clinic_id     uuid not null references clinics(id) on delete cascade,
+  professional_id uuid not null references professionals(id) on delete cascade,
+  unit_id       uuid not null references clinic_units(id) on delete cascade,
+  weekday       smallint not null check (weekday between 0 and 6),
+  start_time    time not null,
+  end_time      time not null,
+  slot_minutes  integer not null default 30 check (slot_minutes > 0),
+  valid_from    date,
+  valid_to      date,
+  is_active     boolean not null default true,
+  created_at    timestamptz not null default now(),
+  constraint professional_schedules_time_check check (end_time > start_time)
+);
+
+create table schedule_blocks (
+  id              uuid primary key default gen_random_uuid(),
+  clinic_id       uuid not null references clinics(id) on delete cascade,
+  professional_id uuid not null references professionals(id) on delete cascade,
+  unit_id         uuid references clinic_units(id) on delete set null,
+  starts_at       timestamptz not null,
+  ends_at         timestamptz not null,
+  reason          text,
+  created_by      uuid references users(id) on delete set null,
+  created_at      timestamptz not null default now(),
+  constraint schedule_blocks_range_check check (ends_at > starts_at)
+);
+
+-- Convênios (catálogo global + contrato por clínica) --------------------------
+create table insurance_providers (
+  id                uuid primary key default gen_random_uuid(),
+  name              text not null,
+  ans_registration  text unique,
+  cnpj              text,
+  contact_email     text,
+  contact_phone     text,
+  status            text not null default 'ativo' check (status in ('ativo', 'inativo')),
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+
+create table clinic_insurance_contracts (
+  id                  uuid primary key default gen_random_uuid(),
+  clinic_id           uuid not null references clinics(id) on delete cascade,
+  provider_id         uuid not null references insurance_providers(id) on delete restrict,
+  status              text not null default 'ativo' check (status in ('ativo', 'inativo')),
+  payment_term_days   integer not null default 30 check (payment_term_days >= 0),
+  default_table       text,
+  notes               text,
+  created_at          timestamptz not null default now(),
+  updated_at          timestamptz not null default now(),
+  unique (clinic_id, provider_id)
+);
+
+-- Pacientes -------------------------------------------------------------------
+create table patients (
+  id                      uuid primary key default gen_random_uuid(),
+  clinic_id               uuid not null references clinics(id) on delete cascade,
+  full_name               text not null,
+  social_name             text,
+  cpf                     text,
+  birth_date              date,
+  sex                     sex_type not null default 'nao_informado',
+  gender                  text,
+  email                   text,
+  phone                   text,
+  whatsapp                text,
+  cep                     text,
+  address                 text,
+  address_number          text,
+  complement              text,
+  neighborhood            text,
+  city                    text,
+  state                   char(2),
+  insurance_provider_id   uuid references insurance_providers(id) on delete set null,
+  insurance_member_number text,
+  emergency_contact_name  text,
+  emergency_contact_phone text,
+  notes                   text,
+  status                  patient_status not null default 'ativo',
+  preferred_unit_id       uuid references clinic_units(id) on delete set null,
+  lgpd_consent_at         timestamptz,
+  lgpd_consent_by         uuid references users(id) on delete set null,
+  photo_url               text,
+  created_by              uuid references users(id) on delete set null,
+  created_at              timestamptz not null default now(),
+  updated_at              timestamptz not null default now(),
+  constraint patients_cpf_fmt check (cpf is null or cpf ~ '^[0-9]{11}$'),
+  constraint patients_state_fmt check (state is null or state ~ '^[A-Z]{2}$')
+);
+create unique index patients_clinic_cpf_uidx
+  on patients (clinic_id, cpf) where cpf is not null;
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_trgm') then
+    create index if not exists patients_name_trgm_idx on patients using gin (full_name gin_trgm_ops);
+  else
+    create index if not exists patients_name_idx on patients (full_name);
+  end if;
+end $$;
+
+create table patient_portal_access (
+  id          uuid primary key default gen_random_uuid(),
+  clinic_id   uuid not null references clinics(id) on delete cascade,
+  patient_id  uuid not null references patients(id) on delete cascade,
+  user_id     uuid not null references users(id) on delete cascade,
+  status      text not null default 'ativo' check (status in ('ativo', 'revogado')),
+  granted_at  timestamptz not null default now(),
+  revoked_at  timestamptz,
+  unique (patient_id, user_id)
+);
+
+create table patient_consents (
+  id                uuid primary key default gen_random_uuid(),
+  clinic_id         uuid not null references clinics(id) on delete cascade,
+  patient_id        uuid not null references patients(id) on delete cascade,
+  type              consent_type not null,
+  granted           boolean not null default false,
+  granted_at        timestamptz,
+  revoked_at        timestamptz,
+  evidence          jsonb not null default '{}'::jsonb,
+  document_version  text,
+  created_by        uuid references users(id) on delete set null,
+  created_at        timestamptz not null default now()
+);
+]]></sql>
+    </migration>
+    <migration order="3" file="003_clinical.sql">
+      <sql><![CDATA[-- =============================================================================
+-- ClinicOS · 003 · Agenda, atendimento e documentação clínica
+-- =============================================================================
+
+create table appointments (
+  id                    uuid primary key default gen_random_uuid(),
+  clinic_id             uuid not null references clinics(id) on delete cascade,
+  unit_id               uuid not null references clinic_units(id) on delete restrict,
+  patient_id            uuid not null references patients(id) on delete restrict,
+  professional_id       uuid not null references professionals(id) on delete restrict,
+  type                  appointment_type not null default 'consulta',
+  status                appointment_status not null default 'agendada',
+  scheduled_start       timestamptz not null,
+  scheduled_end         timestamptz not null,
+  checked_in_at         timestamptz,
+  started_at            timestamptz,
+  finished_at           timestamptz,
+  payment_method        payment_method not null default 'particular',
+  amount                numeric(12,2) not null default 0 check (amount >= 0),
+  insurance_provider_id uuid references insurance_providers(id) on delete set null,
+  notes                 text,
+  cancellation_reason   text,
+  cancelled_by          uuid references users(id) on delete set null,
+  rescheduled_from_id   uuid references appointments(id) on delete set null,
+  created_by            uuid references users(id) on delete set null,
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now(),
+  constraint appointments_range_check check (scheduled_end > scheduled_start)
+);
+
+create table appointment_status_history (
+  id             uuid primary key default gen_random_uuid(),
+  clinic_id      uuid not null references clinics(id) on delete cascade,
+  appointment_id uuid not null references appointments(id) on delete cascade,
+  from_status    appointment_status,
+  to_status      appointment_status not null,
+  changed_by     uuid references users(id) on delete set null,
+  notes          text,
+  created_at     timestamptz not null default now()
+);
+
+create table waiting_list (
+  id              uuid primary key default gen_random_uuid(),
+  clinic_id       uuid not null references clinics(id) on delete cascade,
+  unit_id         uuid not null references clinic_units(id) on delete cascade,
+  patient_id      uuid not null references patients(id) on delete cascade,
+  professional_id uuid references professionals(id) on delete set null,
+  priority        smallint not null default 3 check (priority between 1 and 5),
+  desired_from    timestamptz,
+  desired_to      timestamptz,
+  notes           text,
+  status          text not null default 'aguardando'
+                  check (status in ('aguardando', 'contatado', 'agendado', 'cancelado')),
+  created_by      uuid references users(id) on delete set null,
+  created_at      timestamptz not null default now()
+);
+
+-- Prontuário ------------------------------------------------------------------
+create table medical_records (
+  id                    uuid primary key default gen_random_uuid(),
+  clinic_id             uuid not null references clinics(id) on delete cascade,
+  patient_id            uuid not null references patients(id) on delete restrict,
+  professional_id       uuid not null references professionals(id) on delete restrict,
+  appointment_id        uuid references appointments(id) on delete set null,
+  record_date           timestamptz not null default now(),
+  chief_complaint       text,
+  history_present_illness text,
+  physical_exam         text,
+  assessment            text,
+  plan                  text,
+  icd10_codes           text[] not null default '{}',
+  status                medical_record_status not null default 'rascunho',
+  version               integer not null default 1 check (version > 0),
+  parent_id             uuid references medical_records(id) on delete set null,
+  signed_at             timestamptz,
+  signed_by             uuid references users(id) on delete set null,
+  signature_method      signature_method,
+  content_hash          text,
+  signature_hash        text,
+  verification_code     text unique,
+  created_by            uuid references users(id) on delete set null,
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now()
+);
+create unique index medical_records_appointment_uidx
+  on medical_records (appointment_id) where appointment_id is not null;
+
+create table clinical_notes (
+  id                uuid primary key default gen_random_uuid(),
+  clinic_id         uuid not null references clinics(id) on delete cascade,
+  medical_record_id uuid not null references medical_records(id) on delete cascade,
+  patient_id        uuid not null references patients(id) on delete restrict,
+  professional_id   uuid not null references professionals(id) on delete restrict,
+  note_type         clinical_note_type not null default 'evolucao',
+  content           text not null,
+  status            clinical_note_status not null default 'rascunho',
+  parent_note_id    uuid references clinical_notes(id) on delete set null,
+  signed_at         timestamptz,
+  signed_by         uuid references users(id) on delete set null,
+  signature_method  signature_method,
+  content_hash      text,
+  created_by        uuid references users(id) on delete set null,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+
+create table allergies (
+  id          uuid primary key default gen_random_uuid(),
+  clinic_id   uuid not null references clinics(id) on delete cascade,
+  patient_id  uuid not null references patients(id) on delete cascade,
+  substance   text not null,
+  reaction    text,
+  severity    allergy_severity not null default 'moderada',
+  notes       text,
+  status      text not null default 'ativo' check (status in ('ativo', 'inativo')),
+  noted_by    uuid references users(id) on delete set null,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+-- Medicamentos: linha global (clinic_id nulo) ou customizada da clínica --------
+create table medications (
+  id                uuid primary key default gen_random_uuid(),
+  clinic_id         uuid references clinics(id) on delete cascade,
+  name              text not null,
+  active_ingredient text,
+  presentation      text,
+  controlled_class  text,
+  anvisa_code       text,
+  default_dosage    text,
+  is_active         boolean not null default true,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_trgm') then
+    create index if not exists medications_name_trgm_idx on medications using gin (name gin_trgm_ops);
+  else
+    create index if not exists medications_name_idx on medications (name);
+  end if;
+end $$;
+
+create table prescriptions (
+  id                uuid primary key default gen_random_uuid(),
+  clinic_id         uuid not null references clinics(id) on delete cascade,
+  patient_id        uuid not null references patients(id) on delete restrict,
+  professional_id   uuid not null references professionals(id) on delete restrict,
+  appointment_id    uuid references appointments(id) on delete set null,
+  medical_record_id uuid references medical_records(id) on delete set null,
+  type              prescription_type not null default 'simples',
+  status            prescription_status not null default 'rascunho',
+  issued_at         timestamptz,
+  verification_code text unique,
+  notes             text,
+  content_hash      text,
+  signature_hash    text,
+  signature_method  signature_method,
+  signed_at         timestamptz,
+  signed_by         uuid references users(id) on delete set null,
+  pdf_url           text,
+  created_by        uuid references users(id) on delete set null,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+
+create table prescription_items (
+  id              uuid primary key default gen_random_uuid(),
+  clinic_id       uuid not null references clinics(id) on delete cascade,
+  prescription_id uuid not null references prescriptions(id) on delete cascade,
+  medication_id   uuid references medications(id) on delete set null,
+  medication_name text not null,
+  dose            text,
+  frequency       text,
+  duration        text,
+  route           text,
+  quantity        numeric(12,3),
+  instructions    text,
+  sort_order      integer not null default 0,
+  created_at      timestamptz not null default now()
+);
+
+-- Exames ----------------------------------------------------------------------
+create table exam_catalog (
+  id              uuid primary key default gen_random_uuid(),
+  clinic_id       uuid references clinics(id) on delete cascade,
+  tuss_code       text,
+  name            text not null,
+  exam_type       text,
+  sample_type     text,
+  preparation     text,
+  reference_price numeric(12,2) check (reference_price is null or reference_price >= 0),
+  is_active       boolean not null default true,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_trgm') then
+    create index if not exists exam_catalog_name_trgm_idx on exam_catalog using gin (name gin_trgm_ops);
+  else
+    create index if not exists exam_catalog_name_idx on exam_catalog (name);
+  end if;
+end $$;
+
+create table exam_orders (
+  id                  uuid primary key default gen_random_uuid(),
+  clinic_id           uuid not null references clinics(id) on delete cascade,
+  patient_id          uuid not null references patients(id) on delete restrict,
+  professional_id     uuid not null references professionals(id) on delete restrict,
+  appointment_id      uuid references appointments(id) on delete set null,
+  medical_record_id   uuid references medical_records(id) on delete set null,
+  order_date          timestamptz not null default now(),
+  priority            exam_priority not null default 'rotina',
+  status              exam_order_status not null default 'solicitado',
+  laboratory          text,
+  clinical_indication text,
+  notes               text,
+  verification_code   text unique,
+  created_by          uuid references users(id) on delete set null,
+  created_at          timestamptz not null default now(),
+  updated_at          timestamptz not null default now()
+);
+
+create table exam_order_items (
+  id              uuid primary key default gen_random_uuid(),
+  clinic_id       uuid not null references clinics(id) on delete cascade,
+  exam_order_id   uuid not null references exam_orders(id) on delete cascade,
+  exam_catalog_id uuid references exam_catalog(id) on delete set null,
+  exam_name       text not null,
+  tuss_code       text,
+  status          exam_item_status not null default 'solicitado',
+  sort_order      integer not null default 0,
+  created_at      timestamptz not null default now()
+);
+
+create table exam_results (
+  id                 uuid primary key default gen_random_uuid(),
+  clinic_id          uuid not null references clinics(id) on delete cascade,
+  exam_order_id      uuid not null references exam_orders(id) on delete cascade,
+  exam_order_item_id uuid references exam_order_items(id) on delete cascade,
+  result_summary     text,
+  result_text        text,
+  reference_range    text,
+  attachment_path    text,
+  released_by        uuid references users(id) on delete set null,
+  released_at        timestamptz,
+  status             exam_result_status not null default 'preliminar',
+  created_at         timestamptz not null default now(),
+  updated_at         timestamptz not null default now()
+);
+]]></sql>
+    </migration>
+    <migration order="4" file="004_financial_ops.sql">
+      <sql><![CDATA[-- =============================================================================
+-- ClinicOS · 004 · Financeiro, estoque, comunicação, assinaturas e auditoria
+-- =============================================================================
+
+create table financial_categories (
+  id          uuid primary key default gen_random_uuid(),
+  clinic_id   uuid references clinics(id) on delete cascade,
+  name        text not null,
+  type        transaction_type not null,
+  is_system   boolean not null default false,
+  created_at  timestamptz not null default now()
+);
+create unique index financial_categories_clinic_uidx
+  on financial_categories (clinic_id, lower(name), type) where clinic_id is not null;
+create unique index financial_categories_global_uidx
+  on financial_categories (lower(name), type) where clinic_id is null;
+
+create table insurance_claims (
+  id                uuid primary key default gen_random_uuid(),
+  clinic_id         uuid not null references clinics(id) on delete cascade,
+  patient_id        uuid not null references patients(id) on delete restrict,
+  provider_id       uuid not null references insurance_providers(id) on delete restrict,
+  appointment_id    uuid references appointments(id) on delete set null,
+  guide_number      text not null,
+  tuss_code         text,
+  procedure_name    text,
+  presented_amount  numeric(12,2) not null default 0 check (presented_amount >= 0),
+  approved_amount   numeric(12,2) check (approved_amount is null or approved_amount >= 0),
+  status            claim_status not null default 'rascunho',
+  sent_at           date,
+  approved_at       date,
+  paid_at           date,
+  notes             text,
+  created_by        uuid references users(id) on delete set null,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now(),
+  unique (clinic_id, provider_id, guide_number)
+);
+
+create table financial_transactions (
+  id                 uuid primary key default gen_random_uuid(),
+  clinic_id          uuid not null references clinics(id) on delete cascade,
+  unit_id            uuid references clinic_units(id) on delete set null,
+  category_id        uuid references financial_categories(id) on delete set null,
+  type               transaction_type not null,
+  description        text not null,
+  amount             numeric(12,2) not null check (amount > 0),
+  due_date           date not null,
+  paid_at            date,
+  status             transaction_status not null default 'pendente',
+  payment_method     payment_method,
+  patient_id         uuid references patients(id) on delete set null,
+  appointment_id     uuid references appointments(id) on delete set null,
+  professional_id    uuid references professionals(id) on delete set null,
+  insurance_claim_id uuid references insurance_claims(id) on delete set null,
+  invoice_number     text,
+  notes              text,
+  created_by         uuid references users(id) on delete set null,
+  created_at         timestamptz not null default now(),
+  updated_at         timestamptz not null default now()
+);
+
+create table inventory_items (
+  id               uuid primary key default gen_random_uuid(),
+  clinic_id        uuid not null references clinics(id) on delete cascade,
+  unit_id          uuid references clinic_units(id) on delete set null,
+  name             text not null,
+  category         text,
+  sku              text,
+  quantity         numeric(14,3) not null default 0 check (quantity >= 0),
+  minimum_quantity numeric(14,3) not null default 0 check (minimum_quantity >= 0),
+  unit_of_measure  text not null default 'un',
+  unit_cost        numeric(12,2) not null default 0 check (unit_cost >= 0),
+  sale_price       numeric(12,2) check (sale_price is null or sale_price >= 0),
+  supplier         text,
+  batch            text,
+  expires_at       date,
+  location         text,
+  status           inventory_status not null default 'ativo',
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+create unique index inventory_items_sku_uidx
+  on inventory_items (clinic_id, sku) where sku is not null;
+
+create table inventory_movements (
+  id            uuid primary key default gen_random_uuid(),
+  clinic_id     uuid not null references clinics(id) on delete cascade,
+  item_id       uuid not null references inventory_items(id) on delete cascade,
+  type          inventory_movement_type not null,
+  quantity      numeric(14,3) not null check (quantity > 0),
+  unit_cost     numeric(12,2),
+  reason        text,
+  reference     text,
+  performed_by  uuid references users(id) on delete set null,
+  created_at    timestamptz not null default now()
+);
+
+-- Documentos e integridade ----------------------------------------------------
+create table documents (
+  id                uuid primary key default gen_random_uuid(),
+  clinic_id         uuid not null references clinics(id) on delete cascade,
+  patient_id        uuid not null references patients(id) on delete restrict,
+  medical_record_id uuid references medical_records(id) on delete set null,
+  document_type     text not null,
+  title             text not null,
+  file_path         text not null,
+  mime_type         text,
+  file_size         bigint check (file_size is null or file_size >= 0),
+  sha256            text,
+  signed_at         timestamptz,
+  signed_by         uuid references users(id) on delete set null,
+  signature_method  signature_method,
+  verification_code text unique,
+  created_by        uuid references users(id) on delete set null,
+  created_at        timestamptz not null default now()
+);
+
+create table notifications (
+  id         uuid primary key default gen_random_uuid(),
+  clinic_id  uuid references clinics(id) on delete cascade,
+  user_id    uuid not null references users(id) on delete cascade,
+  type       notification_type not null default 'sistema',
+  title      text not null,
+  body       text,
+  data       jsonb not null default '{}'::jsonb,
+  read_at    timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table whatsapp_messages (
+  id             uuid primary key default gen_random_uuid(),
+  clinic_id      uuid not null references clinics(id) on delete cascade,
+  patient_id     uuid references patients(id) on delete set null,
+  appointment_id uuid references appointments(id) on delete set null,
+  user_id        uuid references users(id) on delete set null,
+  direction      whatsapp_direction not null default 'enviada',
+  template_key   text,
+  body           text not null,
+  status         whatsapp_status not null default 'pendente',
+  external_id    text,
+  error_message  text,
+  sent_at        timestamptz,
+  created_at     timestamptz not null default now()
+);
+
+create table ai_interactions (
+  id               uuid primary key default gen_random_uuid(),
+  clinic_id        uuid not null references clinics(id) on delete cascade,
+  user_id          uuid not null references users(id) on delete restrict,
+  patient_id       uuid references patients(id) on delete set null,
+  feature          ai_feature not null,
+  prompt           text not null,
+  response         text,
+  model            text,
+  prompt_tokens    integer,
+  completion_tokens integer,
+  safety_flags     jsonb not null default '{}'::jsonb,
+  status           ai_status not null default 'pendente',
+  reviewed_by      uuid references users(id) on delete set null,
+  reviewed_at      timestamptz,
+  created_at       timestamptz not null default now()
+);
+
+-- Assinaturas e entitlements --------------------------------------------------
+create table subscriptions (
+  id                      uuid primary key default gen_random_uuid(),
+  clinic_id               uuid not null unique references clinics(id) on delete cascade,
+  plan_id                 uuid not null references plans(id) on delete restrict,
+  status                  subscription_status not null default 'em_teste',
+  periodicity             billing_period not null default 'mensal',
+  price                   numeric(12,2) not null default 0 check (price >= 0),
+  discount                numeric(12,2) not null default 0 check (discount >= 0),
+  started_at              date not null default current_date,
+  current_period_start    date,
+  current_period_end      date,
+  trial_ends_at           date,
+  gateway                 gateway_type not null default 'manual',
+  gateway_subscription_id text,
+  cancelled_at            timestamptz,
+  cancellation_reason     text,
+  created_by              uuid references users(id) on delete set null,
+  created_at              timestamptz not null default now(),
+  updated_at              timestamptz not null default now()
+);
+
+create table subscription_invoices (
+  id               uuid primary key default gen_random_uuid(),
+  clinic_id        uuid not null references clinics(id) on delete cascade,
+  subscription_id  uuid not null references subscriptions(id) on delete cascade,
+  amount           numeric(12,2) not null check (amount >= 0),
+  due_date         date not null,
+  paid_at          date,
+  status           invoice_status not null default 'aberta',
+  gateway          gateway_type not null default 'manual',
+  external_id      text unique,
+  receipt_url      text,
+  notes            text,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+
+create table clinic_modules (
+  id           uuid primary key default gen_random_uuid(),
+  clinic_id    uuid not null references clinics(id) on delete cascade,
+  module_id    uuid not null references modules(id) on delete cascade,
+  enabled      boolean not null default true,
+  source       module_source not null default 'plano',
+  price        numeric(12,2) not null default 0 check (price >= 0),
+  activated_at timestamptz,
+  expires_at   timestamptz,
+  created_by   uuid references users(id) on delete set null,
+  created_at   timestamptz not null default now(),
+  unique (clinic_id, module_id)
+);
+
+create table clinic_features (
+  clinic_id  uuid not null references clinics(id) on delete cascade,
+  feature_id uuid not null references module_features(id) on delete cascade,
+  enabled    boolean not null default true,
+  updated_at timestamptz not null default now(),
+  primary key (clinic_id, feature_id)
+);
+
+create table gateway_events (
+  id                uuid primary key default gen_random_uuid(),
+  gateway           gateway_type not null,
+  external_event_id text not null unique,
+  event_type        text,
+  payload           jsonb not null default '{}'::jsonb,
+  processed_at      timestamptz,
+  error             text,
+  created_at        timestamptz not null default now()
+);
+
+-- Auditoria --------------------------------------------------------------------
+create table audit_logs (
+  id             bigint generated always as identity primary key,
+  clinic_id      uuid references clinics(id) on delete set null,
+  actor_user_id  uuid references users(id) on delete set null,
+  actor_role     app_role,
+  action         audit_action not null,
+  entity         text not null,
+  entity_id      text,
+  before_data    jsonb,
+  after_data     jsonb,
+  ip             inet,
+  user_agent     text,
+  request_id     text,
+  prev_hash      text,
+  hash           text not null,
+  created_at     timestamptz not null default now()
+);
+create index audit_logs_clinic_created_idx on audit_logs (clinic_id, created_at desc);
+
+create table record_access_logs (
+  id                bigint generated always as identity primary key,
+  clinic_id         uuid not null references clinics(id) on delete cascade,
+  medical_record_id uuid not null references medical_records(id) on delete cascade,
+  user_id           uuid references users(id) on delete set null,
+  action            text not null default 'view',
+  ip                inet,
+  created_at        timestamptz not null default now()
+);
+]]></sql>
+    </migration>
+    <migration order="5" file="005_integrity_indexes.sql">
+      <sql><![CDATA[-- =============================================================================
+-- ClinicOS · 005 · Integridade multi-tenant, índices e triggers de atualização
+-- =============================================================================
+
+-- Chaves candidatas (id, clinic_id) para FKs compostas ------------------------
+alter table clinic_units          add constraint clinic_units_id_clinic_uk unique (id, clinic_id);
+alter table clinic_memberships    add constraint clinic_memberships_id_clinic_uk unique (id, clinic_id);
+alter table professionals         add constraint professionals_id_clinic_uk unique (id, clinic_id);
+alter table patients              add constraint patients_id_clinic_uk unique (id, clinic_id);
+alter table appointments          add constraint appointments_id_clinic_uk unique (id, clinic_id);
+alter table medical_records       add constraint medical_records_id_clinic_uk unique (id, clinic_id);
+alter table prescriptions         add constraint prescriptions_id_clinic_uk unique (id, clinic_id);
+alter table exam_orders           add constraint exam_orders_id_clinic_uk unique (id, clinic_id);
+alter table exam_order_items      add constraint exam_order_items_id_clinic_uk unique (id, clinic_id);
+alter table insurance_claims      add constraint insurance_claims_id_clinic_uk unique (id, clinic_id);
+alter table inventory_items       add constraint inventory_items_id_clinic_uk unique (id, clinic_id);
+alter table subscriptions         add constraint subscriptions_id_clinic_uk unique (id, clinic_id);
+
+-- FKs compostas: impede mistura de dados entre clínicas ------------------------
+alter table membership_units
+  add constraint membership_units_membership_fk
+  foreign key (membership_id, clinic_id) references clinic_memberships (id, clinic_id) on delete cascade;
+alter table membership_units
+  add constraint membership_units_unit_fk
+  foreign key (unit_id, clinic_id) references clinic_units (id, clinic_id) on delete cascade;
+
+alter table professional_units
+  add constraint professional_units_professional_fk
+  foreign key (professional_id, clinic_id) references professionals (id, clinic_id) on delete cascade;
+alter table professional_units
+  add constraint professional_units_unit_fk
+  foreign key (unit_id, clinic_id) references clinic_units (id, clinic_id) on delete cascade;
+
+alter table professional_schedules
+  add constraint professional_schedules_professional_fk
+  foreign key (professional_id, clinic_id) references professionals (id, clinic_id) on delete cascade;
+
+alter table appointments
+  add constraint appointments_unit_fk
+  foreign key (unit_id, clinic_id) references clinic_units (id, clinic_id) on delete restrict;
+alter table appointments
+  add constraint appointments_patient_fk
+  foreign key (patient_id, clinic_id) references patients (id, clinic_id) on delete restrict;
+alter table appointments
+  add constraint appointments_professional_fk
+  foreign key (professional_id, clinic_id) references professionals (id, clinic_id) on delete restrict;
+
+alter table appointment_status_history
+  add constraint appointment_history_appointment_fk
+  foreign key (appointment_id, clinic_id) references appointments (id, clinic_id) on delete cascade;
+
+alter table medical_records
+  add constraint medical_records_patient_fk
+  foreign key (patient_id, clinic_id) references patients (id, clinic_id) on delete restrict;
+alter table medical_records
+  add constraint medical_records_professional_fk
+  foreign key (professional_id, clinic_id) references professionals (id, clinic_id) on delete restrict;
+
+alter table clinical_notes
+  add constraint clinical_notes_record_fk
+  foreign key (medical_record_id, clinic_id) references medical_records (id, clinic_id) on delete cascade;
+
+alter table prescriptions
+  add constraint prescriptions_patient_fk
+  foreign key (patient_id, clinic_id) references patients (id, clinic_id) on delete restrict;
+alter table prescriptions
+  add constraint prescriptions_professional_fk
+  foreign key (professional_id, clinic_id) references professionals (id, clinic_id) on delete restrict;
+
+alter table prescription_items
+  add constraint prescription_items_prescription_fk
+  foreign key (prescription_id, clinic_id) references prescriptions (id, clinic_id) on delete cascade;
+
+alter table exam_orders
+  add constraint exam_orders_patient_fk
+  foreign key (patient_id, clinic_id) references patients (id, clinic_id) on delete restrict;
+alter table exam_orders
+  add constraint exam_orders_professional_fk
+  foreign key (professional_id, clinic_id) references professionals (id, clinic_id) on delete restrict;
+
+alter table exam_order_items
+  add constraint exam_order_items_order_fk
+  foreign key (exam_order_id, clinic_id) references exam_orders (id, clinic_id) on delete cascade;
+
+alter table exam_results
+  add constraint exam_results_order_fk
+  foreign key (exam_order_id, clinic_id) references exam_orders (id, clinic_id) on delete cascade;
+
+alter table insurance_claims
+  add constraint insurance_claims_patient_fk
+  foreign key (patient_id, clinic_id) references patients (id, clinic_id) on delete restrict;
+
+alter table financial_transactions
+  add constraint financial_transactions_patient_fk
+  foreign key (patient_id, clinic_id) references patients (id, clinic_id) on delete restrict;
+
+alter table inventory_movements
+  add constraint inventory_movements_item_fk
+  foreign key (item_id, clinic_id) references inventory_items (id, clinic_id) on delete cascade;
+
+alter table documents
+  add constraint documents_patient_fk
+  foreign key (patient_id, clinic_id) references patients (id, clinic_id) on delete restrict;
+
+alter table subscription_invoices
+  add constraint subscription_invoices_subscription_fk
+  foreign key (subscription_id, clinic_id) references subscriptions (id, clinic_id) on delete cascade;
+
+-- Índices de tenant ------------------------------------------------------------
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'clinic_units', 'clinic_memberships', 'membership_units', 'user_invites',
+    'professionals', 'professional_units', 'professional_schedules', 'schedule_blocks',
+    'clinic_insurance_contracts', 'patients', 'patient_portal_access', 'patient_consents',
+    'appointments', 'appointment_status_history', 'waiting_list',
+    'medical_records', 'clinical_notes', 'allergies', 'medications',
+    'prescriptions', 'prescription_items', 'exam_catalog', 'exam_orders',
+    'exam_order_items', 'exam_results', 'financial_categories', 'insurance_claims',
+    'financial_transactions', 'inventory_items', 'inventory_movements', 'documents',
+    'notifications', 'whatsapp_messages', 'ai_interactions', 'subscriptions',
+    'subscription_invoices', 'clinic_modules', 'clinic_features', 'record_access_logs'
+  ]
+  loop
+    execute format('create index if not exists %I on %I (clinic_id)', t || '_clinic_idx', t);
+  end loop;
+end $$;
+
+create index if not exists appointments_start_idx on appointments (clinic_id, scheduled_start);
+create index if not exists appointments_professional_idx on appointments (professional_id, scheduled_start);
+create index if not exists appointments_patient_idx on appointments (patient_id, scheduled_start);
+create index if not exists appointments_status_idx on appointments (clinic_id, status);
+create index if not exists prescriptions_issued_idx on prescriptions (clinic_id, issued_at desc);
+create index if not exists exam_orders_status_idx on exam_orders (clinic_id, status);
+create index if not exists financial_due_idx on financial_transactions (clinic_id, due_date);
+create index if not exists financial_status_idx on financial_transactions (clinic_id, status);
+create index if not exists patients_phone_idx on patients (clinic_id, phone);
+create index if not exists notifications_user_idx on notifications (user_id, read_at);
+create index if not exists whatsapp_status_idx on whatsapp_messages (clinic_id, status);
+
+-- Impede dupla marcação do mesmo profissional no mesmo horário -----------------
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'btree_gist') then
+    alter table appointments
+      add constraint appointments_professional_no_overlap
+      exclude using gist (
+        professional_id with =,
+        tstzrange(scheduled_start, scheduled_end, '[)') with &&
+      ) where (status not in ('cancelada', 'faltou'));
+  else
+    raise notice 'btree_gist indisponível: constraint de não sobreposição não criada.';
+  end if;
+end $$;
+
+-- updated_at automático -------------------------------------------------------
+create or replace function fn_set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'users', 'plans', 'modules', 'clinics', 'clinic_units', 'clinic_memberships',
+    'professionals', 'patients', 'appointments', 'medical_records', 'clinical_notes',
+    'allergies', 'medications', 'prescriptions', 'exam_catalog', 'exam_orders',
+    'exam_results', 'insurance_providers', 'clinic_insurance_contracts',
+    'insurance_claims', 'financial_transactions', 'inventory_items',
+    'subscriptions', 'subscription_invoices'
+  ]
+  loop
+    execute format(
+      'create trigger trg_%I_updated_at before update on %I for each row execute function fn_set_updated_at()',
+      t, t
+    );
+  end loop;
+end $$;
+]]></sql>
+    </migration>
+    <migration order="6" file="006_rls_helpers.sql">
+      <sql><![CDATA[-- =============================================================================
+-- ClinicOS · 006 · Catálogo de permissões, funções de sessão e views seguras
+-- =============================================================================
+
+create table permissions (
+  id          uuid primary key default gen_random_uuid(),
+  module_id   uuid references modules(id) on delete cascade,
+  key         text not null unique,
+  action      text not null,
+  description text,
+  created_at  timestamptz not null default now()
+);
+
+create table role_permissions (
+  role          app_role not null,
+  permission_id uuid not null references permissions(id) on delete cascade,
+  created_at    timestamptz not null default now(),
+  primary key (role, permission_id)
+);
+
+-- Contexto de sessão -----------------------------------------------------------
+-- O backend define, por transação:
+--   select set_config('app.user_id', '<uuid>', true);
+--   select set_config('app.clinic_id', '<uuid>', true);
+create or replace function app_current_user_id()
+returns uuid
+language sql
+stable
+as $$
+  select nullif(current_setting('app.user_id', true), '')::uuid
+$$;
+
+create or replace function app_current_clinic_id()
+returns uuid
+language sql
+stable
+as $$
+  select nullif(current_setting('app.clinic_id', true), '')::uuid
+$$;
+
+-- Helpers com SECURITY DEFINER para consultar vínculos sem recursão de RLS -----
+create or replace function app_is_platform_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1
+    from platform_admins pa
+    where pa.user_id = app_current_user_id()
+      and pa.status = 'ativo'
+  )
+$$;
+
+create or replace function app_is_member_of_clinic(p_clinic uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1
+    from clinic_memberships m
+    where m.clinic_id = p_clinic
+      and m.user_id = app_current_user_id()
+      and m.status = 'ativo'
+  )
+$$;
+
+create or replace function app_has_any_role(p_clinic uuid, p_roles text[])
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1
+    from clinic_memberships m
+    where m.clinic_id = p_clinic
+      and m.user_id = app_current_user_id()
+      and m.status = 'ativo'
+      and m.role::text = any (p_roles)
+  )
+$$;
+
+create or replace function app_has_permission(p_clinic uuid, p_permission text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1
+    from clinic_memberships m
+    join role_permissions rp on rp.role = m.role
+    join permissions p on p.id = rp.permission_id
+    where m.clinic_id = p_clinic
+      and m.user_id = app_current_user_id()
+      and m.status = 'ativo'
+      and p.key = p_permission
+  )
+$$;
+
+create or replace function app_professional_id(p_clinic uuid)
+returns uuid
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select pr.id
+  from professionals pr
+  where pr.clinic_id = p_clinic
+    and pr.user_id = app_current_user_id()
+    and pr.status = 'ativo'
+  limit 1
+$$;
+
+create or replace function app_owns_patient(p_patient uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1
+    from patient_portal_access a
+    where a.patient_id = p_patient
+      and a.user_id = app_current_user_id()
+      and a.status = 'ativo'
+  )
+$$;
+
+create or replace function app_shares_clinic_with_user(p_user uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1
+    from clinic_memberships me
+    join clinic_memberships other on other.clinic_id = me.clinic_id
+    where me.user_id = app_current_user_id()
+      and me.status = 'ativo'
+      and me.role = 'clinic_admin'
+      and other.user_id = p_user
+      and other.status = 'ativo'
+  )
+$$;
+
+-- Mascaramento de CPF para perfis sem permissão de dado sensível ---------------
+create or replace function app_mask_cpf(p_cpf text)
+returns text
+language sql
+immutable
+as $$
+  select case
+    when p_cpf is null or length(p_cpf) <> 11 then p_cpf
+    else '***.***.***-' || right(p_cpf, 2)
+  end
+$$;
+
+-- View de diretório com campo mascarado por perfil -----------------------------
+create or replace view v_patients_directory
+with (security_invoker = true)
+as
+select
+  p.id,
+  p.clinic_id,
+  p.full_name,
+  p.social_name,
+  case
+    when app_has_permission(p.clinic_id, 'pacientes:view_sensitive') then p.cpf
+    else app_mask_cpf(p.cpf)
+  end as cpf,
+  p.birth_date,
+  p.sex,
+  p.email,
+  p.phone,
+  p.whatsapp,
+  p.city,
+  p.state,
+  p.status,
+  ip.name as insurance_provider_name
+from patients p
+left join insurance_providers ip on ip.id = p.insurance_provider_id;
+]]></sql>
+    </migration>
+    <migration order="7" file="007_rls_operational.sql">
+      <sql><![CDATA[-- =============================================================================
+-- ClinicOS · 007 · Row Level Security: tabelas operacionais e dados clínicos
+-- =============================================================================
+-- Estratégia: banco único, schema compartilhado, discriminador clinic_id.
+-- O backend sempre define app.user_id e app.clinic_id na transação.
+-- O papel de runtime NÃO é owner das tabelas; portanto a RLS é aplicada.
+-- Funções SECURITY DEFINER (owner) consultam vínculos sem recursão.
+-- =============================================================================
+
+-- Tabelas genéricas: leitura por papéis, escrita por papéis, exclusão por papéis
+do $$
+declare
+  r record;
+begin
+  for r in
+    select * from (values
+      ('clinic_units',              array['clinic_admin','doctor','receptionist','finance'], array['clinic_admin'],                          array['clinic_admin']),
+      ('membership_units',          array['clinic_admin'],                                     array['clinic_admin'],                          array['clinic_admin']),
+      ('professionals',             array['clinic_admin','doctor','receptionist','finance'], array['clinic_admin'],                          array['clinic_admin']),
+      ('professional_units',        array['clinic_admin','doctor','receptionist','finance'], array['clinic_admin'],                          array['clinic_admin']),
+      ('professional_schedules',    array['clinic_admin','doctor','receptionist','finance'], array['clinic_admin','receptionist'],           array['clinic_admin','receptionist']),
+      ('schedule_blocks',           array['clinic_admin','doctor','receptionist','finance'], array['clinic_admin','receptionist'],           array['clinic_admin','receptionist']),
+      ('clinic_insurance_contracts',array['clinic_admin','doctor','receptionist','finance'], array['clinic_admin','finance'],                array['clinic_admin']),
+      ('patients',                  array['clinic_admin','doctor','receptionist','finance'], array['clinic_admin','receptionist','doctor'],  array['clinic_admin']),
+      ('patient_consents',          array['clinic_admin','doctor','receptionist'],            array['clinic_admin','receptionist'],           array['clinic_admin']),
+      ('appointments',              array['clinic_admin','doctor','receptionist','finance'], array['clinic_admin','receptionist','doctor'],  array['clinic_admin']),
+      ('appointment_status_history',array['clinic_admin','doctor','receptionist','finance'], array['clinic_admin','doctor','receptionist','finance'], array['clinic_admin']),
+      ('waiting_list',              array['clinic_admin','doctor','receptionist'],            array['clinic_admin','receptionist'],           array['clinic_admin','receptionist']),
+      ('allergies',                 array['clinic_admin','doctor','receptionist'],            array['clinic_admin','doctor'],                 array['clinic_admin','doctor']),
+      ('exam_orders',               array['clinic_admin','doctor','receptionist','finance'], array['clinic_admin','doctor','receptionist'],  array['clinic_admin']),
+      ('exam_order_items',          array['clinic_admin','doctor','receptionist','finance'], array['clinic_admin','doctor','receptionist'],  array['clinic_admin']),
+      ('exam_results',              array['clinic_admin','doctor','receptionist'],            array['clinic_admin','doctor'],                 array['clinic_admin']),
+      ('insurance_claims',          array['clinic_admin','finance','receptionist'],           array['clinic_admin','finance'],                array['clinic_admin']),
+      ('financial_transactions',    array['clinic_admin','finance'],                          array['clinic_admin','finance'],                array['clinic_admin']),
+      ('inventory_items',           array['clinic_admin','doctor','receptionist','finance'], array['clinic_admin','finance'],                array['clinic_admin']),
+      ('inventory_movements',       array['clinic_admin','doctor','receptionist','finance'], array['clinic_admin','finance'],                array['clinic_admin']),
+      ('documents',                 array['clinic_admin','doctor','receptionist'],            array['clinic_admin','doctor','receptionist'],  array['clinic_admin']),
+      ('whatsapp_messages',         array['clinic_admin','doctor','receptionist'],            array['clinic_admin','doctor','receptionist'],  array['clinic_admin'])
+    ) as t(tbl, read_roles, write_roles, delete_roles)
+  loop
+    execute format('alter table %I enable row level security', r.tbl);
+    execute format('drop policy if exists tenant_select on %I', r.tbl);
+    execute format('drop policy if exists tenant_insert on %I', r.tbl);
+    execute format('drop policy if exists tenant_update on %I', r.tbl);
+    execute format('drop policy if exists tenant_delete on %I', r.tbl);
+
+    execute format(
+      'create policy tenant_select on %I for select using (app_has_any_role(clinic_id, %L::text[]))',
+      r.tbl, r.read_roles
+    );
+    execute format(
+      'create policy tenant_insert on %I for insert with check (app_has_any_role(clinic_id, %L::text[]))',
+      r.tbl, r.write_roles
+    );
+    execute format(
+      'create policy tenant_update on %I for update using (app_has_any_role(clinic_id, %L::text[])) with check (app_has_any_role(clinic_id, %L::text[]))',
+      r.tbl, r.write_roles, r.write_roles
+    );
+    execute format(
+      'create policy tenant_delete on %I for delete using (app_has_any_role(clinic_id, %L::text[]))',
+      r.tbl, r.delete_roles
+    );
+  end loop;
+end $$;
+
+-- Prontuário: somente admin clínico e médicos; escrita restrita ao profissional --
+alter table medical_records enable row level security;
+create policy medical_records_select on medical_records
+  for select using (app_has_any_role(clinic_id, array['clinic_admin','doctor']));
+create policy medical_records_insert on medical_records
+  for insert with check (
+    app_has_any_role(clinic_id, array['clinic_admin'])
+    or (app_has_any_role(clinic_id, array['doctor']) and professional_id = app_professional_id(clinic_id))
+  );
+create policy medical_records_update on medical_records
+  for update using (
+    app_has_any_role(clinic_id, array['clinic_admin'])
+    or (app_has_any_role(clinic_id, array['doctor']) and professional_id = app_professional_id(clinic_id))
+  ) with check (
+    app_has_any_role(clinic_id, array['clinic_admin'])
+    or (app_has_any_role(clinic_id, array['doctor']) and professional_id = app_professional_id(clinic_id))
+  );
+create policy medical_records_delete on medical_records
+  for delete using (app_has_any_role(clinic_id, array['clinic_admin']));
+
+-- Notas clínicas: mesma regra do prontuário -----------------------------------
+alter table clinical_notes enable row level security;
+create policy clinical_notes_select on clinical_notes
+  for select using (app_has_any_role(clinic_id, array['clinic_admin','doctor']));
+create policy clinical_notes_insert on clinical_notes
+  for insert with check (
+    app_has_any_role(clinic_id, array['clinic_admin'])
+    or (app_has_any_role(clinic_id, array['doctor']) and professional_id = app_professional_id(clinic_id))
+  );
+create policy clinical_notes_update on clinical_notes
+  for update using (
+    app_has_any_role(clinic_id, array['clinic_admin'])
+    or (app_has_any_role(clinic_id, array['doctor']) and professional_id = app_professional_id(clinic_id))
+  ) with check (
+    app_has_any_role(clinic_id, array['clinic_admin'])
+    or (app_has_any_role(clinic_id, array['doctor']) and professional_id = app_professional_id(clinic_id))
+  );
+create policy clinical_notes_delete on clinical_notes
+  for delete using (app_has_any_role(clinic_id, array['clinic_admin']));
+
+-- Prescrições: leitura pela equipe, emissão pelo médico responsável -----------
+alter table prescriptions enable row level security;
+create policy prescriptions_select on prescriptions
+  for select using (app_has_any_role(clinic_id, array['clinic_admin','doctor','receptionist','finance']));
+create policy prescriptions_insert on prescriptions
+  for insert with check (
+    app_has_any_role(clinic_id, array['clinic_admin'])
+    or (app_has_any_role(clinic_id, array['doctor']) and professional_id = app_professional_id(clinic_id))
+  );
+create policy prescriptions_update on prescriptions
+  for update using (
+    app_has_any_role(clinic_id, array['clinic_admin'])
+    or (app_has_any_role(clinic_id, array['doctor']) and professional_id = app_professional_id(clinic_id))
+  ) with check (
+    app_has_any_role(clinic_id, array['clinic_admin'])
+    or (app_has_any_role(clinic_id, array['doctor']) and professional_id = app_professional_id(clinic_id))
+  );
+create policy prescriptions_delete on prescriptions
+  for delete using (app_has_any_role(clinic_id, array['clinic_admin']));
+
+alter table prescription_items enable row level security;
+create policy prescription_items_select on prescription_items
+  for select using (app_has_any_role(clinic_id, array['clinic_admin','doctor','receptionist','finance']));
+create policy prescription_items_write on prescription_items
+  for all using (
+    app_has_any_role(clinic_id, array['clinic_admin'])
+    or exists (
+      select 1 from prescriptions p
+      where p.id = prescription_items.prescription_id
+        and p.clinic_id = prescription_items.clinic_id
+        and app_has_any_role(p.clinic_id, array['doctor'])
+        and p.professional_id = app_professional_id(p.clinic_id)
+    )
+  ) with check (
+    app_has_any_role(clinic_id, array['clinic_admin'])
+    or exists (
+      select 1 from prescriptions p
+      where p.id = prescription_items.prescription_id
+        and p.clinic_id = prescription_items.clinic_id
+        and app_has_any_role(p.clinic_id, array['doctor'])
+        and p.professional_id = app_professional_id(p.clinic_id)
+    )
+  );
+]]></sql>
+    </migration>
+    <migration order="8" file="008_rls_platform_portal.sql">
+      <sql><![CDATA[-- =============================================================================
+-- ClinicOS · 008 · RLS: plataforma, catálogos globais e Portal do Paciente
+-- =============================================================================
+
+-- Organizações -----------------------------------------------------------------
+alter table clinics enable row level security;
+create policy clinics_select_member on clinics
+  for select using (app_is_platform_admin() or app_is_member_of_clinic(id));
+create policy clinics_select_portal on clinics
+  for select using (exists (
+    select 1 from patient_portal_access a
+    where a.clinic_id = clinics.id and a.user_id = app_current_user_id() and a.status = 'ativo'
+  ));
+create policy clinics_update_admin on clinics
+  for update using (app_has_any_role(id, array['clinic_admin']))
+  with check (app_has_any_role(id, array['clinic_admin']));
+create policy clinics_platform_write on clinics
+  for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+-- Usuários ---------------------------------------------------------------------
+alter table users enable row level security;
+create policy users_select_self on users
+  for select using (id = app_current_user_id());
+create policy users_select_admin on users
+  for select using (app_shares_clinic_with_user(id));
+create policy users_update_self on users
+  for update using (id = app_current_user_id())
+  with check (id = app_current_user_id());
+create policy users_platform_all on users
+  for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+alter table platform_admins enable row level security;
+create policy platform_admins_platform_all on platform_admins
+  for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+-- Vínculos e convites ----------------------------------------------------------
+alter table clinic_memberships enable row level security;
+create policy memberships_select on clinic_memberships
+  for select using (
+    user_id = app_current_user_id()
+    or app_has_any_role(clinic_id, array['clinic_admin'])
+  );
+create policy memberships_insert on clinic_memberships
+  for insert with check (app_has_any_role(clinic_id, array['clinic_admin']));
+create policy memberships_update on clinic_memberships
+  for update using (app_has_any_role(clinic_id, array['clinic_admin']))
+  with check (app_has_any_role(clinic_id, array['clinic_admin']));
+create policy memberships_delete on clinic_memberships
+  for delete using (app_has_any_role(clinic_id, array['clinic_admin']));
+
+alter table user_invites enable row level security;
+create policy user_invites_admin_all on user_invites
+  for all using (app_has_any_role(clinic_id, array['clinic_admin']))
+  with check (app_has_any_role(clinic_id, array['clinic_admin']));
+
+alter table patient_portal_access enable row level security;
+create policy portal_access_select on patient_portal_access
+  for select using (
+    (user_id = app_current_user_id() and status = 'ativo')
+    or app_has_any_role(clinic_id, array['clinic_admin'])
+  );
+create policy portal_access_admin_write on patient_portal_access
+  for all using (app_has_any_role(clinic_id, array['clinic_admin']))
+  with check (app_has_any_role(clinic_id, array['clinic_admin']));
+
+-- Notificações -----------------------------------------------------------------
+alter table notifications enable row level security;
+create policy notifications_select_own on notifications
+  for select using (user_id = app_current_user_id());
+create policy notifications_update_own on notifications
+  for update using (user_id = app_current_user_id())
+  with check (user_id = app_current_user_id());
+create policy notifications_insert_own on notifications
+  for insert with check (user_id = app_current_user_id());
+create policy notifications_delete_own on notifications
+  for delete using (user_id = app_current_user_id());
+
+-- IA ---------------------------------------------------------------------------
+alter table ai_interactions enable row level security;
+create policy ai_select_own on ai_interactions
+  for select using (
+    user_id = app_current_user_id()
+    or app_has_any_role(clinic_id, array['clinic_admin'])
+  );
+create policy ai_insert_own on ai_interactions
+  for insert with check (
+    user_id = app_current_user_id()
+    and app_has_any_role(clinic_id, array['clinic_admin','doctor','receptionist','finance'])
+  );
+
+-- Assinaturas e entitlements ---------------------------------------------------
+alter table subscriptions enable row level security;
+create policy subscriptions_select on subscriptions
+  for select using (
+    app_has_any_role(clinic_id, array['clinic_admin','finance'])
+    or app_is_platform_admin()
+  );
+create policy subscriptions_platform_write on subscriptions
+  for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+alter table subscription_invoices enable row level security;
+create policy invoices_select on subscription_invoices
+  for select using (
+    app_has_any_role(clinic_id, array['clinic_admin','finance'])
+    or app_is_platform_admin()
+  );
+create policy invoices_platform_write on subscription_invoices
+  for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+alter table clinic_modules enable row level security;
+create policy clinic_modules_select on clinic_modules
+  for select using (app_is_member_of_clinic(clinic_id) or app_is_platform_admin());
+create policy clinic_modules_platform_write on clinic_modules
+  for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+alter table clinic_features enable row level security;
+create policy clinic_features_select on clinic_features
+  for select using (app_is_member_of_clinic(clinic_id) or app_is_platform_admin());
+create policy clinic_features_platform_write on clinic_features
+  for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+alter table gateway_events enable row level security;
+create policy gateway_events_platform_all on gateway_events
+  for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+-- Catálogos globais ------------------------------------------------------------
+alter table financial_categories enable row level security;
+create policy financial_categories_select on financial_categories
+  for select using (
+    (clinic_id is null and app_current_user_id() is not null)
+    or app_has_any_role(clinic_id, array['clinic_admin','finance'])
+  );
+create policy financial_categories_insert on financial_categories
+  for insert with check (
+    (clinic_id is null and app_is_platform_admin())
+    or app_has_any_role(clinic_id, array['clinic_admin','finance'])
+  );
+create policy financial_categories_update on financial_categories
+  for update using (
+    (clinic_id is null and app_is_platform_admin())
+    or app_has_any_role(clinic_id, array['clinic_admin','finance'])
+  ) with check (
+    (clinic_id is null and app_is_platform_admin())
+    or app_has_any_role(clinic_id, array['clinic_admin','finance'])
+  );
+create policy financial_categories_delete on financial_categories
+  for delete using (
+    (clinic_id is null and app_is_platform_admin())
+    or app_has_any_role(clinic_id, array['clinic_admin'])
+  );
+
+alter table medications enable row level security;
+create policy medications_select on medications
+  for select using (
+    clinic_id is null
+    or app_is_member_of_clinic(clinic_id)
+  );
+create policy medications_write on medications
+  for all using (
+    (clinic_id is null and app_is_platform_admin())
+    or app_has_any_role(clinic_id, array['clinic_admin','doctor'])
+  ) with check (
+    (clinic_id is null and app_is_platform_admin())
+    or app_has_any_role(clinic_id, array['clinic_admin','doctor'])
+  );
+
+alter table exam_catalog enable row level security;
+create policy exam_catalog_select on exam_catalog
+  for select using (
+    clinic_id is null
+    or app_is_member_of_clinic(clinic_id)
+  );
+create policy exam_catalog_write on exam_catalog
+  for all using (
+    (clinic_id is null and app_is_platform_admin())
+    or app_has_any_role(clinic_id, array['clinic_admin','doctor'])
+  ) with check (
+    (clinic_id is null and app_is_platform_admin())
+    or app_has_any_role(clinic_id, array['clinic_admin','doctor'])
+  );
+
+alter table insurance_providers enable row level security;
+create policy insurance_providers_select on insurance_providers
+  for select using (app_current_user_id() is not null);
+create policy insurance_providers_platform_write on insurance_providers
+  for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+-- Catálogo da plataforma (leitura autenticada; escrita do superadministrador) ---
+alter table plans enable row level security;
+create policy plans_select on plans for select using (app_current_user_id() is not null);
+create policy plans_platform_write on plans for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+alter table modules enable row level security;
+create policy modules_select on modules for select using (app_current_user_id() is not null);
+create policy modules_platform_write on modules for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+alter table module_features enable row level security;
+create policy module_features_select on module_features for select using (app_current_user_id() is not null);
+create policy module_features_platform_write on module_features for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+alter table plan_modules enable row level security;
+create policy plan_modules_select on plan_modules for select using (app_current_user_id() is not null);
+create policy plan_modules_platform_write on plan_modules for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+alter table permissions enable row level security;
+create policy permissions_select on permissions for select using (app_current_user_id() is not null);
+create policy permissions_platform_write on permissions for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+alter table role_permissions enable row level security;
+create policy role_permissions_select on role_permissions for select using (app_current_user_id() is not null);
+create policy role_permissions_platform_write on role_permissions for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+alter table platform_settings enable row level security;
+create policy platform_settings_platform_all on platform_settings
+  for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+-- Auditoria (somente leitura; escrita exclusivamente por triggers) -------------
+alter table audit_logs enable row level security;
+create policy audit_logs_select on audit_logs
+  for select using (
+    app_has_any_role(clinic_id, array['clinic_admin'])
+    or (clinic_id is null and app_is_platform_admin())
+  );
+
+alter table record_access_logs enable row level security;
+create policy record_access_select on record_access_logs
+  for select using (app_has_any_role(clinic_id, array['clinic_admin']));
+create policy record_access_insert on record_access_logs
+  for insert with check (
+    user_id = app_current_user_id()
+    and app_has_any_role(clinic_id, array['clinic_admin','doctor'])
+  );
+
+-- Portal do Paciente: acesso somente aos próprios registros -------------------
+create policy patients_portal_select on patients
+  for select using (app_owns_patient(id));
+
+create policy appointments_portal_select on appointments
+  for select using (app_owns_patient(patient_id));
+
+create policy prescriptions_portal_select on prescriptions
+  for select using (app_owns_patient(patient_id));
+
+create policy prescription_items_portal_select on prescription_items
+  for select using (exists (
+    select 1 from prescriptions p
+    where p.id = prescription_items.prescription_id
+      and app_owns_patient(p.patient_id)
+  ));
+
+create policy exam_orders_portal_select on exam_orders
+  for select using (app_owns_patient(patient_id));
+
+create policy exam_order_items_portal_select on exam_order_items
+  for select using (exists (
+    select 1 from exam_orders o
+    where o.id = exam_order_items.exam_order_id
+      and app_owns_patient(o.patient_id)
+  ));
+
+create policy exam_results_portal_select on exam_results
+  for select using (
+    status = 'liberado'
+    and exists (
+      select 1 from exam_orders o
+      where o.id = exam_results.exam_order_id
+        and app_owns_patient(o.patient_id)
+    )
+  );
+
+create policy documents_portal_select on documents
+  for select using (app_owns_patient(patient_id));
+
+create policy patient_consents_portal_select on patient_consents
+  for select using (app_owns_patient(patient_id));
+
+create policy professionals_portal_select on professionals
+  for select using (exists (
+    select 1 from patient_portal_access a
+    where a.clinic_id = professionals.clinic_id
+      and a.user_id = app_current_user_id()
+      and a.status = 'ativo'
+  ));
+
+create policy clinic_units_portal_select on clinic_units
+  for select using (exists (
+    select 1 from patient_portal_access a
+    where a.clinic_id = clinic_units.clinic_id
+      and a.user_id = app_current_user_id()
+      and a.status = 'ativo'
+  ));
+]]></sql>
+    </migration>
+    <migration order="9" file="009_audit.sql">
+      <sql><![CDATA[-- =============================================================================
+-- ClinicOS · 009 · Auditoria encadeada (append-only, à prova de adulteração)
+-- =============================================================================
+
+create or replace function fn_audit_row()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_clinic      uuid;
+  v_before      jsonb;
+  v_after       jsonb;
+  v_entity_id   text;
+  v_prev        text;
+  v_hash        text;
+  v_payload     text;
+  v_actor       uuid := app_current_user_id();
+  v_role        app_role;
+  v_action      audit_action := lower(tg_op)::audit_action;
+  v_created_at  timestamptz := clock_timestamp();
+begin
+  if tg_op = 'DELETE' then
+    v_before := to_jsonb(old);
+    v_entity_id := coalesce(to_jsonb(old)->>'id', to_jsonb(old)->>'key');
+    v_clinic := nullif(to_jsonb(old)->>'clinic_id', '')::uuid;
+  elsif tg_op = 'UPDATE' then
+    v_before := to_jsonb(old);
+    v_after := to_jsonb(new);
+    v_entity_id := coalesce(to_jsonb(new)->>'id', to_jsonb(new)->>'key');
+    v_clinic := coalesce(
+      nullif(to_jsonb(new)->>'clinic_id', '')::uuid,
+      nullif(to_jsonb(old)->>'clinic_id', '')::uuid
+    );
+  else
+    v_after := to_jsonb(new);
+    v_entity_id := coalesce(to_jsonb(new)->>'id', to_jsonb(new)->>'key');
+    v_clinic := nullif(to_jsonb(new)->>'clinic_id', '')::uuid;
+  end if;
+
+  select m.role into v_role
+  from clinic_memberships m
+  where m.clinic_id = v_clinic
+    and m.user_id = v_actor
+    and m.status = 'ativo';
+
+  if v_role is null and app_is_platform_admin() then
+    v_role := 'platform_admin';
+  end if;
+
+  perform pg_advisory_xact_lock(
+    hashtext(coalesce(v_clinic::text, 'platform'))::bigint
+  );
+
+  select al.hash into v_prev
+  from audit_logs al
+  where al.clinic_id is not distinct from v_clinic
+  order by al.created_at desc, al.id desc
+  limit 1;
+
+  v_payload :=
+    coalesce(v_prev, '') || '|' ||
+    tg_table_name || '|' ||
+    v_action::text || '|' ||
+    coalesce(v_clinic::text, '') || '|' ||
+    coalesce(v_actor::text, '') || '|' ||
+    coalesce(v_entity_id, '') || '|' ||
+    coalesce(v_before::text, '') || '|' ||
+    coalesce(v_after::text, '') || '|' ||
+    ((extract(epoch from v_created_at) * 1000000)::bigint)::text;
+
+  v_hash := encode(sha256(convert_to(v_payload, 'UTF8')), 'hex');
+
+  insert into audit_logs (
+    clinic_id, actor_user_id, actor_role, action, entity, entity_id,
+    before_data, after_data, prev_hash, hash, created_at
+  ) values (
+    v_clinic, v_actor, v_role, v_action, tg_table_name, v_entity_id,
+    v_before, v_after, v_prev, v_hash, v_created_at
+  );
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$$;
+
+-- Verificação da cadeia de auditoria ------------------------------------------
+create or replace function fn_verify_audit_chain(p_clinic uuid default null)
+returns table (checked bigint, chain_valid boolean, broken_at bigint)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  r record;
+  v_prev text := null;
+  v_hash text;
+  v_payload text;
+  v_count bigint := 0;
+begin
+  for r in
+    select * from audit_logs
+    where clinic_id is not distinct from p_clinic
+    order by created_at, id
+  loop
+    v_payload :=
+      coalesce(v_prev, '') || '|' ||
+      r.entity || '|' ||
+      r.action::text || '|' ||
+      coalesce(r.clinic_id::text, '') || '|' ||
+      coalesce(r.actor_user_id::text, '') || '|' ||
+      coalesce(r.entity_id, '') || '|' ||
+      coalesce(r.before_data::text, '') || '|' ||
+      coalesce(r.after_data::text, '') || '|' ||
+      ((extract(epoch from r.created_at) * 1000000)::bigint)::text;
+
+    v_hash := encode(sha256(convert_to(v_payload, 'UTF8')), 'hex');
+    v_count := v_count + 1;
+
+    if r.prev_hash is distinct from v_prev or r.hash <> v_hash then
+      return query select v_count, false, r.id;
+      return;
+    end if;
+
+    v_prev := r.hash;
+  end loop;
+
+  return query select v_count, true, null::bigint;
+end;
+$$;
+
+-- Triggers de auditoria --------------------------------------------------------
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'users', 'clinics', 'clinic_units', 'clinic_memberships', 'professionals',
+    'patients', 'patient_consents', 'appointments', 'medical_records',
+    'clinical_notes', 'allergies', 'prescriptions', 'prescription_items',
+    'exam_orders', 'exam_results', 'financial_transactions', 'insurance_claims',
+    'inventory_items', 'inventory_movements', 'documents', 'subscriptions',
+    'subscription_invoices', 'clinic_modules', 'plans', 'modules', 'platform_settings'
+  ]
+  loop
+    execute format('drop trigger if exists trg_audit_%I on %I', t, t);
+    execute format(
+      'create trigger trg_audit_%I after insert or update or delete on %I for each row execute function fn_audit_row()',
+      t, t
+    );
+  end loop;
+end $$;
+]]></sql>
+    </migration>
+    <migration order="10" file="010_grants.sql">
+      <sql><![CDATA[-- =============================================================================
+-- ClinicOS · 010 · Grantes do papel de runtime
+-- =============================================================================
+-- Em produção:
+--   create role clinicos_app login password '...' nosuperuser nobypassrls;
+-- O owner das tabelas (migrações) ignora a RLS; o runtime NÃO.
+-- =============================================================================
+
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'clinicos_app') then
+    grant usage on schema public to clinicos_app;
+    grant select, insert, update, delete on all tables in schema public to clinicos_app;
+    grant usage, select on all sequences in schema public to clinicos_app;
+    grant execute on all functions in schema public to clinicos_app;
+  end if;
+end $$;
+]]></sql>
+    </migration>
+    <migration order="11" file="011_seed_catalog.sql">
+      <sql><![CDATA[-- =============================================================================
+-- ClinicOS · 011 · Catálogo inicial (módulos, funcionalidades, planos)
+-- Dados de referência — não são dados fictícios de pacientes/clínicas.
+-- =============================================================================
+
+insert into modules
+  (key, name, description, category, audience, icon, route, is_core, is_plan, is_active, sort_order)
+values
+  ('painel', 'Painel', 'Visão geral da operação da clínica.', 'operacao', 'clinica', 'layout-dashboard', '/app/painel', false, true, true, 10),
+  ('agenda', 'Agenda', 'Agendamentos, confirmações e lista de espera.', 'operacao', 'clinica', 'calendar-days', '/app/agenda', false, true, true, 20),
+  ('consultas', 'Consultas', 'Registro e acompanhamento dos atendimentos.', 'operacao', 'clinica', 'stethoscope', '/app/consultas', false, true, true, 30),
+  ('prontuarios', 'Prontuários', 'Documentação clínica do paciente.', 'clinico', 'clinica', 'file-text', '/app/prontuarios', false, true, true, 40),
+  ('prescricoes', 'Prescrições', 'Receitas, catálogo e assinatura digital.', 'clinico', 'clinica', 'pill', '/app/prescricoes', false, true, true, 50),
+  ('exames', 'Exames', 'Solicitações, resultados e pendências.', 'clinico', 'clinica', 'flask-conical', '/app/exames', false, true, true, 60),
+  ('financeiro', 'Financeiro', 'Contas, faturamento e fluxo de caixa.', 'gestao', 'clinica', 'wallet', '/app/financeiro', false, true, true, 70),
+  ('convenios', 'Convênios', 'Operadoras, guias, faturamento e glosas.', 'gestao', 'clinica', 'shield-check', '/app/convenios', false, true, true, 80),
+  ('estoque', 'Estoque', 'Produtos, movimentações e estoque mínimo.', 'gestao', 'clinica', 'package', '/app/estoque', false, true, true, 90),
+  ('pacientes', 'Pacientes', 'Cadastro, histórico e consentimento LGPD.', 'cadastros', 'clinica', 'users', '/app/pacientes', false, true, true, 100),
+  ('medicos', 'Médicos e profissionais', 'Corpo clínico, conselho e especialidades.', 'cadastros', 'clinica', 'user-round-cog', '/app/profissionais', false, true, true, 110),
+  ('unidades', 'Unidades', 'Matriz, filiais e consultórios.', 'cadastros', 'clinica', 'building-2', '/app/unidades', false, true, true, 120),
+  ('ia', 'Assistente de IA', 'Apoio à documentação e organização clínica.', 'relacionamento', 'clinica', 'sparkles', '/app/ia', false, true, true, 130),
+  ('whatsapp', 'WhatsApp', 'Lembretes, templates e histórico de mensagens.', 'relacionamento', 'clinica', 'message-circle', '/app/whatsapp', false, true, true, 140),
+  ('portal', 'Portal do paciente', 'Acesso do paciente a consultas e documentos.', 'relacionamento', 'clinica', 'globe', '/portal', false, true, true, 150),
+  ('usuarios', 'Usuários e permissões', 'Equipe, perfis e auditoria de acessos.', 'sistema', 'clinica', 'user-cog', '/app/usuarios', true, false, true, 160),
+  ('assinatura', 'Assinatura', 'Plano, limites, faturas e upgrade.', 'sistema', 'clinica', 'credit-card', '/app/assinatura', true, false, true, 170),
+  ('configuracoes', 'Configurações', 'Dados da clínica, preferências e integrações.', 'sistema', 'clinica', 'settings', '/app/configuracoes', true, false, true, 180),
+  ('relatorios', 'Relatórios', 'Indicadores operacionais e financeiros.', 'sistema', 'clinica', 'bar-chart-3', '/app/relatorios', true, false, true, 190),
+  ('plataforma-dashboard', 'Dashboard da plataforma', 'Visão consolidada de clínicas e receita.', 'plataforma', 'plataforma', 'layout-dashboard', '/admin', true, false, true, 200),
+  ('plataforma-clinicas', 'Clínicas', 'Cadastro e contratação de clínicas.', 'plataforma', 'plataforma', 'building-2', '/admin/clinicas', true, false, true, 210),
+  ('plataforma-planos', 'Planos de assinatura', 'Catálogo comercial, limites e preços.', 'plataforma', 'plataforma', 'layers', '/admin/planos', true, false, true, 220),
+  ('plataforma-modulos', 'Módulos e funcionalidades', 'Catálogo de módulos e adoção.', 'plataforma', 'plataforma', 'boxes', '/admin/modulos', true, false, true, 230),
+  ('plataforma-assinaturas', 'Assinaturas', 'Contratos, status e renovações.', 'plataforma', 'plataforma', 'file-badge', '/admin/assinaturas', true, false, true, 240),
+  ('plataforma-pagamentos', 'Pagamentos', 'Faturas e registro de pagamentos.', 'plataforma', 'plataforma', 'wallet', '/admin/pagamentos', true, false, true, 250),
+  ('plataforma-relatorios', 'Relatórios', 'Receita, planos e adoção de módulos.', 'plataforma', 'plataforma', 'bar-chart-3', '/admin/relatorios', true, false, true, 260),
+  ('plataforma-configuracoes', 'Configurações da plataforma', 'Padrões, gateway e contato comercial.', 'plataforma', 'plataforma', 'settings', '/admin/configuracoes', true, false, true, 270)
+on conflict (key) do update set
+  name = excluded.name,
+  description = excluded.description,
+  category = excluded.category,
+  audience = excluded.audience,
+  icon = excluded.icon,
+  route = excluded.route,
+  is_core = excluded.is_core,
+  is_plan = excluded.is_plan,
+  sort_order = excluded.sort_order;
+
+-- Funcionalidades -------------------------------------------------------------
+insert into module_features (module_id, key, name, description, sort_order)
+select m.id, v.feature_key, v.name, v.description, v.sort_order
+from (
+  values
+    ('painel', 'indicadores-operacionais', 'Indicadores operacionais', 'Consultas, faltas e cancelamentos do dia.', 10),
+    ('painel', 'resumo-consultas', 'Resumo de consultas', 'Situação dos atendimentos em tempo real.', 20),
+    ('painel', 'alertas', 'Alertas', 'Pendências financeiras e de exames.', 30),
+    ('agenda', 'agenda-diaria', 'Agenda diária', 'Visualização por dia e profissional.', 10),
+    ('agenda', 'agenda-semanal', 'Agenda semanal', 'Visualização consolidada da semana.', 20),
+    ('agenda', 'bloqueio-horarios', 'Bloqueio de horários', 'Férias, ausências e intervalos.', 30),
+    ('agenda', 'lista-espera', 'Lista de espera', 'Encaixe de pacientes por prioridade.', 40),
+    ('agenda', 'confirmacao-automatica', 'Confirmação automática', 'Confirmação de presença por mensagem.', 50),
+    ('agenda', 'lembretes', 'Lembretes', 'Avisos de consulta ao paciente.', 60),
+    ('consultas', 'registro-atendimento', 'Registro de atendimento', 'Check-in, início e conclusão.', 10),
+    ('consultas', 'historico-consultas', 'Histórico de consultas', 'Consulta por período e profissional.', 20),
+    ('consultas', 'controle-atendimento', 'Controle de atendimento', 'Status e fila de espera.', 30),
+    ('prontuarios', 'anamnese', 'Anamnese', 'Queixa principal e história da doença.', 10),
+    ('prontuarios', 'evolucao-clinica', 'Evolução clínica', 'Notas e evolução por atendimento.', 20),
+    ('prontuarios', 'historico-medico', 'Histórico médico', 'Registros anteriores do paciente.', 30),
+    ('prontuarios', 'alergias', 'Alergias', 'Alergias e reações adversas.', 40),
+    ('prontuarios', 'diagnosticos', 'Diagnósticos', 'CID-10 e hipóteses registradas.', 50),
+    ('prescricoes', 'receitas', 'Receitas', 'Emissão e histórico de receitas.', 10),
+    ('prescricoes', 'catalogo-medicamentos', 'Catálogo de medicamentos', 'Medicamentos e apresentações.', 20),
+    ('prescricoes', 'modelos-prescricao', 'Modelos de prescrição', 'Modelos reutilizáveis.', 30),
+    ('prescricoes', 'assinatura-documentos', 'Assinatura de documentos', 'Hash, código de verificação e assinatura.', 40),
+    ('exames', 'solicitacoes', 'Solicitações', 'Pedidos de exames por paciente.', 10),
+    ('exames', 'pedidos-medicos', 'Pedidos médicos', 'Catálogo TUSS e indicação clínica.', 20),
+    ('exames', 'anexo-resultados', 'Anexação de resultados', 'Laudos e anexos.', 30),
+    ('exames', 'acompanhamento-pendencias', 'Acompanhamento de pendências', 'Exames aguardando resultado.', 40),
+    ('financeiro', 'contas-pagar', 'Contas a pagar', 'Despesas e vencimentos.', 10),
+    ('financeiro', 'contas-receber', 'Contas a receber', 'Receitas e inadimplência.', 20),
+    ('financeiro', 'fluxo-caixa', 'Fluxo de caixa', 'Entradas, saídas e saldo.', 30),
+    ('financeiro', 'faturamento', 'Faturamento', 'Receitas por atendimento e convênio.', 40),
+    ('financeiro', 'conciliacao', 'Conciliação', 'Baixa e conferência de pagamentos.', 50),
+    ('financeiro', 'comissoes', 'Comissões', 'Repasses por profissional.', 60),
+    ('financeiro', 'orcamentos', 'Orçamentos', 'Propostas e aprovações.', 70),
+    ('financeiro', 'relatorios-financeiros', 'Relatórios financeiros', 'Indicadores e exportações.', 80),
+    ('convenios', 'cadastro-convenios', 'Cadastro de convênios', 'Operadoras e contratos.', 10),
+    ('convenios', 'guias', 'Guias', 'Emissão e acompanhamento.', 20),
+    ('convenios', 'autorizacoes', 'Autorizações', 'Solicitações e respostas.', 30),
+    ('convenios', 'faturamento-convenios', 'Faturamento', 'Apresentação e pagamento.', 40),
+    ('convenios', 'glosas', 'Glosas', 'Recursos e ajustes.', 50),
+    ('estoque', 'produtos-insumos', 'Produtos e insumos', 'Cadastro e categorias.', 10),
+    ('estoque', 'entradas', 'Entradas', 'Compras e recebimentos.', 20),
+    ('estoque', 'saidas', 'Saídas', 'Consumo e dispensação.', 30),
+    ('estoque', 'estoque-minimo', 'Estoque mínimo', 'Alertas de reposição.', 40),
+    ('estoque', 'relatorios-estoque', 'Relatórios', 'Posição e validade.', 50),
+    ('pacientes', 'cadastro-pacientes', 'Cadastro', 'Dados pessoais e contato.', 10),
+    ('pacientes', 'historico-paciente', 'Histórico', 'Atendimentos e documentos.', 20),
+    ('pacientes', 'consentimento-lgpd', 'Consentimento LGPD', 'Autorização e evidências.', 30),
+    ('pacientes', 'importacao', 'Importação', 'Carga controlada de pacientes.', 40),
+    ('pacientes', 'relatorios-pacientes', 'Relatórios', 'Indicadores da base.', 50),
+    ('medicos', 'cadastro-profissionais', 'Cadastro', 'Dados do profissional.', 10),
+    ('medicos', 'crm-especialidades', 'CRM e especialidades', 'Conselho, UF e especialidades.', 20),
+    ('medicos', 'valores-consulta', 'Valores por consulta', 'Preço e duração padrão.', 30),
+    ('medicos', 'vinculo-unidades', 'Vínculo com unidades', 'Atuação por unidade.', 40),
+    ('unidades', 'cadastro-unidades', 'Cadastro de unidades', 'Matriz, filiais e consultórios.', 10),
+    ('unidades', 'enderecos', 'Endereços', 'Localização e CEP.', 20),
+    ('unidades', 'telefones', 'Telefones', 'Contatos por unidade.', 30),
+    ('unidades', 'vinculo-profissionais', 'Vínculo de profissionais', 'Equipe por unidade.', 40),
+    ('ia', 'assistente-documentacao', 'Assistente de documentação', 'Apoio à redação, sem decisão clínica.', 10),
+    ('ia', 'resumo-prontuario', 'Resumo de prontuário', 'Síntese para revisão humana.', 20),
+    ('ia', 'busca-inteligente', 'Busca inteligente', 'Localização de informações.', 30),
+    ('ia', 'protecao-dados', 'Proteção de dados', 'Minimização e trilha de uso.', 40),
+    ('whatsapp', 'lembretes-whatsapp', 'Lembretes', 'Avisos de consulta.', 10),
+    ('whatsapp', 'templates-mensagem', 'Templates', 'Modelos aprovados.', 20),
+    ('whatsapp', 'historico-mensagens', 'Histórico', 'Mensagens e status.', 30),
+    ('whatsapp', 'status-entrega', 'Status de entrega', 'Envio, entrega e leitura.', 40),
+    ('portal', 'acesso-paciente', 'Acesso do paciente', 'Login e vínculo seguro.', 10),
+    ('portal', 'consultas-portal', 'Consultas', 'Agenda e histórico.', 20),
+    ('portal', 'resultados-portal', 'Resultados', 'Exames liberados.', 30),
+    ('portal', 'documentos-portal', 'Documentos', 'Receitas e atestados.', 40),
+    ('usuarios', 'convites', 'Convites', 'Envio e aceite.', 10),
+    ('usuarios', 'perfis', 'Perfis', 'Papéis e vínculos.', 20),
+    ('usuarios', 'permissoes', 'Permissões', 'Matriz de acesso.', 30),
+    ('usuarios', 'auditoria', 'Auditoria', 'Trilha de ações.', 40),
+    ('assinatura', 'plano-atual', 'Plano atual', 'Módulos e limites.', 10),
+    ('assinatura', 'faturas', 'Faturas', 'Histórico de cobranças.', 20),
+    ('assinatura', 'limites', 'Limites', 'Consumo do plano.', 30),
+    ('assinatura', 'upgrade', 'Upgrade', 'Mudança de plano.', 40),
+    ('configuracoes', 'dados-clinica', 'Dados da clínica', 'Identificação e endereço.', 10),
+    ('configuracoes', 'preferencias', 'Preferências', 'Fuso, moeda e agenda.', 20),
+    ('configuracoes', 'integracoes', 'Integrações', 'WhatsApp, pagamentos e IA.', 30),
+    ('configuracoes', 'seguranca', 'Segurança', 'Sessões, LGPD e auditoria.', 40),
+    ('relatorios', 'relatorios-operacionais', 'Operacionais', 'Agenda, faltas e produção.', 10),
+    ('relatorios', 'relatorios-financeiros', 'Financeiros', 'Receita, despesa e convênios.', 20),
+    ('relatorios', 'exportacao', 'Exportação', 'CSV e PDF.', 30),
+    ('relatorios', 'agendados', 'Agendados', 'Envio periódico.', 40),
+    ('plataforma-dashboard', 'visao-clinicas', 'Visão de clínicas', 'Clínicas, status e implantação.', 10),
+    ('plataforma-dashboard', 'receita-recorrente', 'Receita recorrente', 'MRR, ARR e ticket médio.', 20),
+    ('plataforma-dashboard', 'renovacoes', 'Renovações', 'Próximos vencimentos.', 30),
+    ('plataforma-clinicas', 'cadastro-clinicas', 'Cadastro de clínicas', 'Dados, administrador e assinatura.', 10),
+    ('plataforma-clinicas', 'modulos-contratados', 'Módulos contratados', 'Plano e adicionais.', 20),
+    ('plataforma-clinicas', 'link-conta', 'Link da conta', 'Acesso ao ambiente da clínica.', 30),
+    ('plataforma-planos', 'catalogo-planos', 'Catálogo', 'Planos comerciais.', 10),
+    ('plataforma-planos', 'limites', 'Limites', 'Usuários, unidades e IA.', 20),
+    ('plataforma-planos', 'precos', 'Preços', 'Mensal e anual.', 30),
+    ('plataforma-modulos', 'catalogo-modulos', 'Catálogo', 'Módulos e categorias.', 10),
+    ('plataforma-modulos', 'funcionalidades', 'Funcionalidades', 'Detalhe por módulo.', 20),
+    ('plataforma-modulos', 'adocao', 'Adoção', 'Clínicas por módulo.', 30),
+    ('plataforma-assinaturas', 'contratos', 'Contratos', 'Vigência e condições.', 10),
+    ('plataforma-assinaturas', 'status', 'Status', 'Teste, ativa e inadimplente.', 20),
+    ('plataforma-assinaturas', 'renovacoes', 'Renovações', 'Ciclos e vencimentos.', 30),
+    ('plataforma-pagamentos', 'faturas', 'Faturas', 'Emissão e baixa.', 10),
+    ('plataforma-pagamentos', 'registro-pagamentos', 'Registro de pagamentos', 'Baixa manual e conciliação.', 20),
+    ('plataforma-pagamentos', 'gateway', 'Gateway', 'Stripe, Asaas e manual.', 30),
+    ('plataforma-relatorios', 'receita', 'Receita', 'MRR, ARR e inadimplência.', 10),
+    ('plataforma-relatorios', 'adocao-modulos', 'Adoção de módulos', 'Uso por clínica.', 20),
+    ('plataforma-relatorios', 'exportacao', 'Exportação', 'CSV e PDF.', 30),
+    ('plataforma-configuracoes', 'padroes-plataforma', 'Padrões', 'Teste, periodicidade e contato.', 10),
+    ('plataforma-configuracoes', 'gateway', 'Gateway', 'Provedor padrão.', 20),
+    ('plataforma-configuracoes', 'observacoes', 'Observações', 'Notas internas.', 30)
+) as v(module_key, feature_key, name, description, sort_order)
+join modules m on m.key = v.module_key
+on conflict (module_id, key) do update set
+  name = excluded.name,
+  description = excluded.description,
+  sort_order = excluded.sort_order;
+
+-- Planos ----------------------------------------------------------------------
+insert into plans
+  (name, slug, description, monthly_price, annual_price, user_limit, professional_limit,
+   unit_limit, patient_limit, storage_gb, ai_interaction_limit, message_limit, trial_days, is_active, sort_order)
+values
+  ('Essencial', 'essential', 'Para consultórios que estão organizando a operação.',
+   189.00, 1890.00, 3, 2, 1, 500, 5, 100, 200, 14, true, 10),
+  ('Profissional', 'professional', 'Para clínicas com equipe, prontuário e convênios.',
+   349.00, 3490.00, 10, 5, 2, 2000, 20, 500, 1000, 14, true, 20),
+  ('Empresarial', 'enterprise', 'Para redes com várias unidades e alto volume.',
+   690.00, 6900.00, 30, 15, 5, 10000, 100, 2000, 5000, 14, true, 30)
+on conflict (slug) do update set
+  name = excluded.name,
+  description = excluded.description,
+  monthly_price = excluded.monthly_price,
+  annual_price = excluded.annual_price,
+  user_limit = excluded.user_limit,
+  professional_limit = excluded.professional_limit,
+  unit_limit = excluded.unit_limit,
+  patient_limit = excluded.patient_limit,
+  storage_gb = excluded.storage_gb,
+  ai_interaction_limit = excluded.ai_interaction_limit,
+  message_limit = excluded.message_limit,
+  trial_days = excluded.trial_days;
+
+-- Módulos por plano -----------------------------------------------------------
+insert into plan_modules (plan_id, module_id)
+select p.id, m.id
+from (values
+  ('essential', 'painel'), ('essential', 'agenda'), ('essential', 'consultas'), ('essential', 'pacientes'),
+  ('professional', 'painel'), ('professional', 'agenda'), ('professional', 'consultas'), ('professional', 'pacientes'),
+  ('professional', 'prontuarios'), ('professional', 'prescricoes'), ('professional', 'exames'),
+  ('professional', 'financeiro'), ('professional', 'convenios'), ('professional', 'medicos'),
+  ('enterprise', 'painel'), ('enterprise', 'agenda'), ('enterprise', 'consultas'), ('enterprise', 'pacientes'),
+  ('enterprise', 'prontuarios'), ('enterprise', 'prescricoes'), ('enterprise', 'exames'),
+  ('enterprise', 'financeiro'), ('enterprise', 'convenios'), ('enterprise', 'medicos'),
+  ('enterprise', 'estoque'), ('enterprise', 'unidades')
+) as v(plan_slug, module_key)
+join plans p on p.slug = v.plan_slug
+join modules m on m.key = v.module_key
+on conflict (plan_id, module_id) do nothing;
+
+-- Configurações iniciais da plataforma ----------------------------------------
+insert into platform_settings (key, value) values
+  ('platform.name', '{"value":"ClinicOS"}'::jsonb),
+  ('platform.support_email', '{"value":"suporte@clinicos.app"}'::jsonb),
+  ('platform.default_trial_days', '{"value":14}'::jsonb),
+  ('platform.default_gateway', '{"value":"stripe"}'::jsonb),
+  ('platform.default_periodicity', '{"value":"mensal"}'::jsonb),
+  ('platform.whatsapp_mode', '{"value":"manual"}'::jsonb),
+  ('platform.ai_guardrails', '{"diagnosis":false,"prescribing":false,"human_review":true}'::jsonb)
+on conflict (key) do nothing;
+
+-- Categorias financeiras padrão (globais) --------------------------------------
+insert into financial_categories (clinic_id, name, type, is_system)
+values
+  (null, 'Consulta', 'receita', true),
+  (null, 'Retorno', 'receita', true),
+  (null, 'Procedimento', 'receita', true),
+  (null, 'Exame', 'receita', true),
+  (null, 'Convênio', 'receita', true),
+  (null, 'Venda de produto', 'receita', true),
+  (null, 'Salários', 'despesa', true),
+  (null, 'Aluguel', 'despesa', true),
+  (null, 'Materiais', 'despesa', true),
+  (null, 'Impostos', 'despesa', true),
+  (null, 'Marketing', 'despesa', true),
+  (null, 'Outros', 'despesa', true)
+on conflict do nothing;
+]]></sql>
+    </migration>
+    <migration order="12" file="012_permissions.sql">
+      <sql><![CDATA[-- =============================================================================
+-- ClinicOS · 012 · Permissões (RBAC)
+-- =============================================================================
+
+insert into permissions (module_id, key, action, description)
+select m.id, m.key || ':' || v.action, v.action, v.description
+from (
+  values
+    ('painel', 'view', 'Visualizar painel'),
+    ('agenda', 'view', 'Visualizar agenda'),
+    ('agenda', 'create', 'Criar agendamento'),
+    ('agenda', 'edit', 'Editar agendamento'),
+    ('agenda', 'delete', 'Cancelar/excluir agendamento'),
+    ('consultas', 'view', 'Visualizar consultas'),
+    ('consultas', 'create', 'Registrar consulta'),
+    ('consultas', 'edit', 'Editar consulta'),
+    ('prontuarios', 'view', 'Visualizar prontuário'),
+    ('prontuarios', 'create', 'Criar prontuário'),
+    ('prontuarios', 'edit', 'Editar prontuário'),
+    ('prontuarios', 'sign', 'Assinar prontuário'),
+    ('prontuarios', 'export', 'Exportar prontuário'),
+    ('prescricoes', 'view', 'Visualizar prescrições'),
+    ('prescricoes', 'create', 'Emitir prescrição'),
+    ('prescricoes', 'sign', 'Assinar prescrição'),
+    ('prescricoes', 'cancel', 'Cancelar prescrição'),
+    ('exames', 'view', 'Visualizar exames'),
+    ('exames', 'create', 'Solicitar exames'),
+    ('exames', 'result', 'Liberar resultado'),
+    ('exames', 'delete', 'Excluir solicitação'),
+    ('financeiro', 'view', 'Visualizar financeiro'),
+    ('financeiro', 'create', 'Criar lançamento'),
+    ('financeiro', 'edit', 'Editar lançamento'),
+    ('financeiro', 'delete', 'Excluir lançamento'),
+    ('financeiro', 'export', 'Exportar financeiro'),
+    ('convenios', 'view', 'Visualizar convênios'),
+    ('convenios', 'create', 'Criar guia'),
+    ('convenios', 'edit', 'Editar guia'),
+    ('convenios', 'approve', 'Aprovar/glosar guia'),
+    ('estoque', 'view', 'Visualizar estoque'),
+    ('estoque', 'create', 'Criar item'),
+    ('estoque', 'edit', 'Editar item/movimentar'),
+    ('estoque', 'delete', 'Excluir item'),
+    ('pacientes', 'view', 'Visualizar pacientes'),
+    ('pacientes', 'view_sensitive', 'Visualizar CPF e dados sensíveis'),
+    ('pacientes', 'create', 'Criar paciente'),
+    ('pacientes', 'edit', 'Editar paciente'),
+    ('pacientes', 'delete', 'Excluir paciente'),
+    ('pacientes', 'export', 'Exportar pacientes'),
+    ('medicos', 'view', 'Visualizar profissionais'),
+    ('medicos', 'create', 'Criar profissional'),
+    ('medicos', 'edit', 'Editar profissional'),
+    ('medicos', 'delete', 'Excluir profissional'),
+    ('unidades', 'view', 'Visualizar unidades'),
+    ('unidades', 'create', 'Criar unidade'),
+    ('unidades', 'edit', 'Editar unidade'),
+    ('unidades', 'delete', 'Excluir unidade'),
+    ('ia', 'use', 'Usar assistente de IA'),
+    ('whatsapp', 'view', 'Visualizar mensagens'),
+    ('whatsapp', 'send', 'Enviar mensagens'),
+    ('portal', 'view', 'Acessar portal'),
+    ('portal', 'appointments', 'Visualizar consultas no portal'),
+    ('portal', 'results', 'Visualizar resultados no portal'),
+    ('portal', 'documents', 'Visualizar documentos no portal'),
+    ('usuarios', 'view', 'Visualizar usuários'),
+    ('usuarios', 'invite', 'Convidar usuário'),
+    ('usuarios', 'edit', 'Editar permissões'),
+    ('usuarios', 'delete', 'Remover usuário'),
+    ('assinatura', 'view', 'Visualizar assinatura'),
+    ('assinatura', 'manage', 'Gerenciar assinatura'),
+    ('configuracoes', 'view', 'Visualizar configurações'),
+    ('configuracoes', 'edit', 'Editar configurações'),
+    ('relatorios', 'view', 'Visualizar relatórios'),
+    ('relatorios', 'export', 'Exportar relatórios'),
+    ('plataforma-dashboard', 'view', 'Visualizar dashboard da plataforma'),
+    ('plataforma-clinicas', 'view', 'Visualizar clínicas'),
+    ('plataforma-clinicas', 'create', 'Criar clínica'),
+    ('plataforma-clinicas', 'edit', 'Editar clínica'),
+    ('plataforma-clinicas', 'manage', 'Gerenciar módulos e assinatura'),
+    ('plataforma-planos', 'view', 'Visualizar planos'),
+    ('plataforma-planos', 'create', 'Criar plano'),
+    ('plataforma-planos', 'edit', 'Editar plano'),
+    ('plataforma-planos', 'delete', 'Desativar plano'),
+    ('plataforma-modulos', 'view', 'Visualizar módulos'),
+    ('plataforma-modulos', 'edit', 'Editar módulos e funcionalidades'),
+    ('plataforma-assinaturas', 'view', 'Visualizar assinaturas'),
+    ('plataforma-assinaturas', 'edit', 'Editar assinatura'),
+    ('plataforma-assinaturas', 'manage', 'Gerenciar pagamentos e renovação'),
+    ('plataforma-pagamentos', 'view', 'Visualizar pagamentos'),
+    ('plataforma-pagamentos', 'manage', 'Registrar pagamento'),
+    ('plataforma-relatorios', 'view', 'Visualizar relatórios da plataforma'),
+    ('plataforma-relatorios', 'export', 'Exportar relatórios da plataforma'),
+    ('plataforma-configuracoes', 'view', 'Visualizar configurações da plataforma'),
+    ('plataforma-configuracoes', 'edit', 'Editar configurações da plataforma')
+) as v(module_key, action, description)
+join modules m on m.key = v.module_key
+on conflict (key) do update set
+  module_id = excluded.module_id,
+  action = excluded.action,
+  description = excluded.description;
+
+-- Administrador da clínica: todos os módulos de clínica ------------------------
+insert into role_permissions (role, permission_id)
+select 'clinic_admin', p.id
+from permissions p
+join modules m on m.id = p.module_id
+where m.audience = 'clinica'
+on conflict do nothing;
+
+-- Médico -----------------------------------------------------------------------
+insert into role_permissions (role, permission_id)
+select 'doctor', p.id
+from permissions p
+where p.key = any (array[
+  'painel:view',
+  'agenda:view', 'agenda:create', 'agenda:edit',
+  'consultas:view', 'consultas:create', 'consultas:edit',
+  'prontuarios:view', 'prontuarios:create', 'prontuarios:edit', 'prontuarios:sign', 'prontuarios:export',
+  'prescricoes:view', 'prescricoes:create', 'prescricoes:sign', 'prescricoes:cancel',
+  'exames:view', 'exames:create', 'exames:result',
+  'pacientes:view', 'pacientes:view_sensitive',
+  'medicos:view', 'unidades:view', 'convenios:view', 'estoque:view',
+  'relatorios:view', 'ia:use', 'whatsapp:view', 'whatsapp:send',
+  'portal:view', 'configuracoes:view', 'usuarios:view'
+])
+on conflict do nothing;
+
+-- Recepcionista ----------------------------------------------------------------
+insert into role_permissions (role, permission_id)
+select 'receptionist', p.id
+from permissions p
+where p.key = any (array[
+  'painel:view',
+  'agenda:view', 'agenda:create', 'agenda:edit', 'agenda:delete',
+  'consultas:view', 'consultas:create',
+  'pacientes:view', 'pacientes:view_sensitive', 'pacientes:create', 'pacientes:edit',
+  'medicos:view', 'unidades:view', 'convenios:view', 'estoque:view',
+  'exames:view', 'exames:create', 'prescricoes:view',
+  'relatorios:view', 'whatsapp:view', 'whatsapp:send',
+  'portal:view', 'configuracoes:view'
+])
+on conflict do nothing;
+
+-- Financeiro -------------------------------------------------------------------
+insert into role_permissions (role, permission_id)
+select 'finance', p.id
+from permissions p
+where p.key = any (array[
+  'painel:view',
+  'financeiro:view', 'financeiro:create', 'financeiro:edit', 'financeiro:delete', 'financeiro:export',
+  'convenios:view', 'convenios:create', 'convenios:edit', 'convenios:approve',
+  'estoque:view', 'estoque:create', 'estoque:edit', 'estoque:delete',
+  'pacientes:view', 'medicos:view', 'unidades:view',
+  'agenda:view', 'consultas:view', 'exames:view', 'prescricoes:view',
+  'relatorios:view', 'relatorios:export',
+  'assinatura:view', 'configuracoes:view', 'whatsapp:view'
+])
+on conflict do nothing;
+
+-- Paciente ---------------------------------------------------------------------
+insert into role_permissions (role, permission_id)
+select 'patient', p.id
+from permissions p
+where p.key = any (array[
+  'portal:view', 'portal:appointments', 'portal:results', 'portal:documents',
+  'configuracoes:view'
+])
+on conflict do nothing;
+
+-- Superadministrador da plataforma ---------------------------------------------
+insert into role_permissions (role, permission_id)
+select 'platform_admin', p.id
+from permissions p
+join modules m on m.id = p.module_id
+where m.audience = 'plataforma'
+on conflict do nothing;
+]]></sql>
+    </migration>
+    <migration order="13" file="013_platform_provisioning.sql">
+      <sql><![CDATA[-- =============================================================================
+-- ClinicOS · 013 · Provisão de contas pela plataforma (somente escrita da conta)
+-- =============================================================================
+-- O superadministrador não acessa dados clínicos por padrão. Esta migração
+-- concede ao papel de plataforma apenas a escrita nos registros de CONTA
+-- necessários para provisionar uma clínica contratada:
+--   · clinic_units       (matriz e unidades cadastráveis pela plataforma)
+--   · clinic_memberships (vínculo inicial de administrador da clínica)
+--   · membership_units   (vínculo entre adesão e unidade)
+--   · user_invites       (convites de administrador no onboarding)
+-- Nenhuma delas contém dado clínico. Nenhum direito de leitura/escrita sobre
+-- pacientes, prontuários, receitas, laudos ou financeiro é concedido aqui.
+-- =============================================================================
+
+create policy clinic_units_platform_write on clinic_units
+  for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+create policy memberships_platform_write on clinic_memberships
+  for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+create policy membership_units_platform_write on membership_units
+  for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+
+create policy user_invites_platform_write on user_invites
+  for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+]]></sql>
+    </migration>
+    <migration order="14" file="014_clinic_operations.sql">
+      <sql><![CDATA[-- =============================================================================
+-- ClinicOS · 014 · Operação da clínica: limites de plano e aceite de convite
+-- =============================================================================
+-- O acesso a `subscriptions` é restrito a admin/financeiro por RLS, mas a
+-- aplicação precisa dos limites do plano para qualquer perfil que cria
+-- registros (ex.: recepcionista criando pacientes). Em vez de abrir a tabela,
+-- expomos uma função SECURITY DEFINER guardada por vínculo ativo na clínica.
+-- =============================================================================
+
+create or replace function app_plan_limits(p_clinic uuid)
+returns table (
+  plan_name          text,
+  user_limit         integer,
+  professional_limit integer,
+  unit_limit         integer,
+  patient_limit      integer
+)
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select p.name::text,
+         p.user_limit,
+         p.professional_limit,
+         p.unit_limit,
+         p.patient_limit
+    from subscriptions s
+    join plans p on p.id = s.plan_id
+   where s.clinic_id = p_clinic
+     and s.status in ('em_teste', 'ativa', 'inadimplente', 'vencida')
+     and app_is_member_of_clinic(p_clinic)
+   order by (s.status = 'ativa') desc,
+            s.current_period_end desc nulls last,
+            s.started_at desc
+   limit 1;
+$$;
+
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'clinicos_app') then
+    grant execute on function app_plan_limits(uuid) to clinicos_app;
+  end if;
+end $$;
+
+-- Diretório de pacientes: expõe colunas não sensíveis e mantém o CPF mascarado
+-- no banco para perfis sem `pacientes:view_sensitive`. Colunas novas são
+-- acrescentadas ao final para permitir `create or replace view`.
+create or replace view v_patients_directory
+with (security_invoker = true)
+as
+select
+  p.id,
+  p.clinic_id,
+  p.full_name,
+  p.social_name,
+  case
+    when app_has_permission(p.clinic_id, 'pacientes:view_sensitive') then p.cpf
+    else app_mask_cpf(p.cpf)
+  end as cpf,
+  p.birth_date,
+  p.sex,
+  p.email,
+  p.phone,
+  p.whatsapp,
+  p.city,
+  p.state,
+  p.status,
+  ip.name as insurance_provider_name,
+  p.lgpd_consent_at,
+  p.created_at,
+  p.updated_at
+from patients p
+left join insurance_providers ip on ip.id = p.insurance_provider_id;
+
+-- Aceite de convite -----------------------------------------------------------
+-- O convite é validado no banco (token, uso único e expiração) porque quem
+-- aceita ainda não é membro da clínica: nenhuma política de RLS o deixaria
+-- criar o próprio vínculo. A função é chamada pela aplicação com o hash do
+-- token; o link contém o token em claro, exibido uma única vez ao convidar.
+create or replace function app_accept_invite(
+  p_token_hash    text,
+  p_full_name     text,
+  p_password_hash text
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_invite    user_invites%rowtype;
+  v_user_id   uuid;
+  v_user_name text;
+  v_existing  users%rowtype;
+begin
+  select * into v_invite
+    from user_invites
+   where token_hash = p_token_hash
+   for update;
+
+  if not found then
+    return jsonb_build_object('ok', false, 'error', 'invalido');
+  end if;
+
+  if v_invite.status <> 'pendente' then
+    return jsonb_build_object('ok', false, 'error', 'utilizado');
+  end if;
+
+  if v_invite.expires_at <= now() then
+    update user_invites set status = 'expirado' where id = v_invite.id;
+    return jsonb_build_object('ok', false, 'error', 'expirado');
+  end if;
+
+  v_user_name := coalesce(nullif(trim(p_full_name), ''), v_invite.full_name);
+
+  if v_user_name is null or length(v_user_name) < 3 then
+    return jsonb_build_object('ok', false, 'error', 'nome');
+  end if;
+
+  if p_password_hash is null or length(p_password_hash) < 20 then
+    return jsonb_build_object('ok', false, 'error', 'senha');
+  end if;
+
+  select * into v_existing
+    from users
+   where lower(email) = lower(v_invite.email)
+   limit 1;
+
+  if v_existing.id is not null then
+    v_user_id := v_existing.id;
+  else
+    insert into users (email, password_hash, full_name, status, email_verified_at)
+    values (lower(v_invite.email), p_password_hash, v_user_name, 'ativo', now())
+    returning id into v_user_id;
+  end if;
+
+  -- Quem aceita passa a ser o ator da própria admissão (auditoria).
+  perform set_config('app.user_id', v_user_id::text, true);
+  perform set_config('app.clinic_id', v_invite.clinic_id::text, true);
+
+  insert into clinic_memberships (clinic_id, user_id, role, status, invited_by)
+  values (v_invite.clinic_id, v_user_id, v_invite.role, 'ativo', v_invite.invited_by)
+  on conflict (clinic_id, user_id) do update
+    set role = excluded.role,
+        status = 'ativo',
+        updated_at = now();
+
+  -- Atribuição padrão: todas as unidades ativas da clínica.
+  insert into membership_units (membership_id, unit_id, clinic_id)
+  select m.id, u.id, m.clinic_id
+    from clinic_memberships m
+    join clinic_units u
+      on u.clinic_id = m.clinic_id
+     and u.status = 'ativa'
+   where m.clinic_id = v_invite.clinic_id
+     and m.user_id = v_user_id
+  on conflict do nothing;
+
+  update user_invites
+     set status = 'aceito',
+         accepted_at = now()
+   where id = v_invite.id;
+
+  return jsonb_build_object(
+    'ok', true,
+    'userId', v_user_id,
+    'clinicId', v_invite.clinic_id,
+    'email', lower(v_invite.email),
+    'existingUser', v_existing.id is not null
+  );
+end;
+$$;
+
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'clinicos_app') then
+    grant execute on function app_accept_invite(text, text, text) to clinicos_app;
+  end if;
+end $$;
+]]></sql>
+    </migration>
+    <migration order="15" file="015_invite_status.sql">
+      <sql><![CDATA[-- =============================================================================
+-- ClinicOS · 015 · Status do convite (página pública de aceite)
+-- =============================================================================
+
+create or replace function app_invite_status(p_token_hash text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v record;
+begin
+  select status::text as status, email, full_name, expires_at
+    into v
+    from user_invites
+   where token_hash = p_token_hash
+   limit 1;
+
+  if not found then
+    return jsonb_build_object('found', false);
+  end if;
+
+  return jsonb_build_object(
+    'found', true,
+    'status', v.status,
+    'email', v.email,
+    'fullName', v.full_name,
+    'expiresAt', v.expires_at,
+    'valid', (v.status = 'pendente' and v.expires_at > now())
+  );
+end;
+$$;
+
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'clinicos_app') then
+    grant execute on function app_invite_status(text) to clinicos_app;
+  end if;
+end $$;
+]]></sql>
+    </migration>
+    <migration order="16" file="016_public_verification.sql">
+      <sql><![CDATA[-- =============================================================================
+-- ClinicOS · 016 · Verificação pública de documento
+-- =============================================================================
+
+create or replace function app_verify_document(p_code text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_type text := null;
+  v_status text := null;
+  v_signed_at timestamptz := null;
+  v_professional text := null;
+  v_version integer := null;
+begin
+  select 'prontuario', mr.status::text, mr.signed_at, pr.full_name, mr.version
+    into v_type, v_status, v_signed_at, v_professional, v_version
+    from medical_records mr
+    join professionals pr on pr.id = mr.professional_id
+   where mr.verification_code = p_code
+   limit 1;
+
+  if v_type is null then
+    select 'prescricao', pr.status::text, pr.signed_at, prof.full_name, 1
+      into v_type, v_status, v_signed_at, v_professional, v_version
+      from prescriptions pr
+      join professionals prof on prof.id = pr.professional_id
+     where pr.verification_code = p_code
+     limit 1;
+  end if;
+
+  if v_type is null then
+    return jsonb_build_object('found', false);
+  end if;
+
+  return jsonb_build_object(
+    'found', true,
+    'type', v_type,
+    'status', v_status,
+    'signedAt', v_signed_at,
+    'professional', v_professional,
+    'version', v_version,
+    'valid', (v_status in ('assinado', 'emitida'))
+  );
+end;
+$$;
+
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'clinicos_app') then
+    grant execute on function app_verify_document(text) to clinicos_app;
+  end if;
+end $$;
+]]></sql>
+    </migration>
+    <migration order="17" file="017_rename_clientes_to_clinicas.sql">
+      <sql><![CDATA[-- =============================================================================
+-- ClinicOS · 017 · Renomeia "Clientes" para "Clínicas" na plataforma
+-- =============================================================================
+-- A área de gestão de tenants da plataforma passa a se chamar "Clínicas" em
+-- rotas, rótulos, catálogo de módulos e permissões. Esta migration é
+-- idempotente: em instalações novas (011/012 já renomeados) nada é alterado.
+
+-- Catálogo de módulos da plataforma -----------------------------------------
+update modules
+   set key = 'plataforma-clinicas',
+       name = 'Clínicas',
+       description = 'Cadastro e contratação de clínicas.',
+       route = '/admin/clinicas',
+       updated_at = now()
+ where key = 'plataforma-clientes';
+
+-- Funcionalidades do módulo ------------------------------------------------
+update module_features
+   set key = 'visao-clinicas'
+ where key = 'visao-clientes';
+
+update module_features
+   set name = 'Visão de clínicas'
+ where name = 'Visão de clientes';
+
+-- Permissões (RBAC) --------------------------------------------------------
+update permissions
+   set key = replace(key, 'plataforma-clientes:', 'plataforma-clinicas:'),
+       description = case key
+         when 'plataforma-clientes:view' then 'Visualizar clínicas'
+         when 'plataforma-clientes:create' then 'Criar clínica'
+         when 'plataforma-clientes:edit' then 'Editar clínica'
+         else description
+       end
+ where key like 'plataforma-clientes:%';
+]]></sql>
+    </migration>
+  </migrations>
+  <seed file="dev-seed.sql" note="Dados de demonstração e catálogo. Substitua __DEMO_PASSWORD_HASH__ pelo hash Argon2id da senha (Clinicos@2026).">
+    <sql><![CDATA[-- =============================================================================
+-- ClinicOS · Seed de desenvolvimento
+-- ATENÇÃO: dados fictícios, exclusivos para demonstração local.
+-- A clínica criada é explicitamente rotulada "Clínica Demonstração" e a UI
+-- exibe um aviso de ambiente de demonstração. Nunca usar em produção.
+-- =============================================================================
+
+begin;
+
+insert into users (id, email, password_hash, full_name, status, email_verified_at)
+values
+  ('00000000-0000-4000-8000-000000000001', 'super@clinicos.dev', '__DEMO_PASSWORD_HASH__', 'Administrador da Plataforma', 'ativo', now()),
+  ('11111111-1111-4111-8111-111111111111', 'admin@clinicos.dev', '__DEMO_PASSWORD_HASH__', 'Ana Ribeiro', 'ativo', now()),
+  ('22222222-2222-4222-8222-222222222222', 'medico@clinicos.dev', '__DEMO_PASSWORD_HASH__', 'Dra. Helena Martins', 'ativo', now()),
+  ('33333333-3333-4333-8333-333333333333', 'recepcao@clinicos.dev', '__DEMO_PASSWORD_HASH__', 'Bruno Costa', 'ativo', now()),
+  ('44444444-4444-4444-8444-444444444444', 'financeiro@clinicos.dev', '__DEMO_PASSWORD_HASH__', 'Carla Nunes', 'ativo', now()),
+  ('55555555-5555-4555-8555-555555555555', 'paciente@clinicos.dev', '__DEMO_PASSWORD_HASH__', 'Mariana Alves Souza', 'ativo', now());
+
+insert into platform_admins (user_id, status)
+values ('00000000-0000-4000-8000-000000000001', 'ativo');
+
+insert into clinics
+  (id, legal_name, trade_name, display_name, cnpj, email, phone, whatsapp,
+   cep, address, address_number, neighborhood, city, state, status,
+   portal_slug, notes)
+values
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'Clínica Demonstração Ltda', 'Clínica Demonstração', 'Clínica Demonstração',
+   '12345678000190', 'contato@clinica.demo', '(11) 4000-0000', '(11) 90000-0000',
+   '01310100', 'Avenida Paulista', '1000', 'Bela Vista', 'São Paulo', 'SP', 'ativa',
+   'clinica-demonstracao',
+   'Registro fictício criado pelo seed de desenvolvimento. Não contém dados reais.');
+
+insert into clinic_units
+  (id, clinic_id, name, type, internal_code, phone, email,
+   cep, address, address_number, neighborhood, city, state,
+   manager_name, opening_hours, is_headquarters, status)
+values
+  ('aaaaaaaa-0000-4000-8000-000000000001',
+   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'Unidade Paulista', 'matriz', 'MATRIZ-01', '(11) 4000-0000', 'unidade@clinica.demo',
+   '01310100', 'Avenida Paulista', '1000', 'Bela Vista', 'São Paulo', 'SP',
+   'Ana Ribeiro', 'Segunda a sexta, 08h às 19h', true, 'ativa');
+
+insert into clinic_memberships (clinic_id, user_id, role, status, job_title, hired_at)
+values
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '11111111-1111-4111-8111-111111111111', 'clinic_admin', 'ativo', 'Administradora', current_date - 400),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '22222222-2222-4222-8222-222222222222', 'doctor', 'ativo', 'Médica clínica', current_date - 380),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '33333333-3333-4333-8333-333333333333', 'receptionist', 'ativo', 'Recepcionista', current_date - 300),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '44444444-4444-4444-8444-444444444444', 'finance', 'ativo', 'Analista financeiro', current_date - 250);
+
+insert into membership_units (membership_id, unit_id, clinic_id)
+select m.id, 'aaaaaaaa-0000-4000-8000-000000000001', m.clinic_id
+from clinic_memberships m
+where m.clinic_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+
+insert into professionals
+  (id, clinic_id, user_id, full_name, council, council_number, council_state,
+   specialties, phone, email, consultation_price, default_duration_min,
+   commission_percent, calendar_color, status, notes)
+values
+  ('aaaaaaaa-0000-4000-8000-000000000003',
+   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   '22222222-2222-4222-8222-222222222222',
+   'Dra. Helena Martins', 'CRM', '123456', 'SP',
+   array['Clínica Médica', 'Medicina do Trabalho'],
+   '(11) 98888-0001', 'helena@clinica.demo', 350.00, 30, 30.00, '#0EA5E9',
+   'ativo', 'Profissional fictícia do ambiente de demonstração.');
+
+insert into professional_units (professional_id, unit_id, clinic_id)
+values ('aaaaaaaa-0000-4000-8000-000000000003',
+        'aaaaaaaa-0000-4000-8000-000000000001',
+        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+
+insert into patients
+  (id, clinic_id, full_name, social_name, cpf, birth_date, sex, gender,
+   email, phone, whatsapp, city, state, status, preferred_unit_id,
+   lgpd_consent_at, notes)
+values
+  ('aaaaaaaa-0000-4000-8000-000000000011', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'Mariana Alves Souza', null, '00000000191', '1988-04-12', 'feminino', 'feminino',
+   'mariana@exemplo.demo', '(11) 90000-0011', '(11) 90000-0011', 'São Paulo', 'SP',
+   'ativo', 'aaaaaaaa-0000-4000-8000-000000000001', now() - interval '120 days',
+   'Paciente fictícia do ambiente de demonstração.'),
+  ('aaaaaaaa-0000-4000-8000-000000000012', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'João Pedro Lima', null, null, '1979-09-03', 'masculino', 'masculino',
+   'joao@exemplo.demo', '(11) 90000-0012', '(11) 90000-0012', 'São Paulo', 'SP',
+   'ativo', 'aaaaaaaa-0000-4000-8000-000000000001', now() - interval '90 days',
+   'Paciente fictício do ambiente de demonstração.'),
+  ('aaaaaaaa-0000-4000-8000-000000000013', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'Beatriz Nogueira', null, null, '1995-01-27', 'feminino', 'feminino',
+   'beatriz@exemplo.demo', '(11) 90000-0013', '(11) 90000-0013', 'São Paulo', 'SP',
+   'ativo', 'aaaaaaaa-0000-4000-8000-000000000001', now() - interval '65 days',
+   'Paciente fictícia do ambiente de demonstração.'),
+  ('aaaaaaaa-0000-4000-8000-000000000014', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'Carlos Eduardo Ramos', null, null, '1968-11-15', 'masculino', 'masculino',
+   'carlos@exemplo.demo', '(11) 90000-0014', '(11) 90000-0014', 'São Paulo', 'SP',
+   'ativo', 'aaaaaaaa-0000-4000-8000-000000000001', now() - interval '40 days',
+   'Paciente fictício do ambiente de demonstração.'),
+  ('aaaaaaaa-0000-4000-8000-000000000015', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'Fernanda Ribeiro', null, null, '1992-06-08', 'feminino', 'feminino',
+   'fernanda@exemplo.demo', '(11) 90000-0015', '(11) 90000-0015', 'São Paulo', 'SP',
+   'ativo', 'aaaaaaaa-0000-4000-8000-000000000001', now() - interval '25 days',
+   'Paciente fictícia do ambiente de demonstração.'),
+  ('aaaaaaaa-0000-4000-8000-000000000016', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'Lucas Martins', null, null, '2001-03-21', 'masculino', 'masculino',
+   'lucas@exemplo.demo', '(11) 90000-0016', '(11) 90000-0016', 'São Paulo', 'SP',
+   'ativo', 'aaaaaaaa-0000-4000-8000-000000000001', now() - interval '10 days',
+   'Paciente fictício do ambiente de demonstração.');
+
+insert into patient_portal_access (clinic_id, patient_id, user_id, status)
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        'aaaaaaaa-0000-4000-8000-000000000011',
+        '55555555-5555-4555-8555-555555555555', 'ativo');
+
+-- Assinatura e entitlements ---------------------------------------------------
+insert into subscriptions
+  (clinic_id, plan_id, status, periodicity, price, started_at,
+   current_period_start, current_period_end, trial_ends_at, gateway)
+values
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   (select id from plans where slug = 'professional'),
+   'ativa', 'mensal', 349.00, current_date - 120,
+   date_trunc('month', current_date)::date,
+   (date_trunc('month', current_date) + interval '1 month - 1 day')::date,
+   null, 'manual');
+
+insert into clinic_modules (clinic_id, module_id, enabled, source, activated_at)
+select 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', pm.module_id, true, 'plano', now()
+from plan_modules pm
+join plans p on p.id = pm.plan_id
+where p.slug = 'professional'
+on conflict (clinic_id, module_id) do nothing;
+
+-- Agenda de demonstração ------------------------------------------------------
+insert into appointments
+  (id, clinic_id, unit_id, patient_id, professional_id, type, status,
+   scheduled_start, scheduled_end, checked_in_at, started_at, finished_at,
+   payment_method, amount, created_by)
+values
+  ('aaaaaaaa-0000-4000-8000-000000000021', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'aaaaaaaa-0000-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000011',
+   'aaaaaaaa-0000-4000-8000-000000000003', 'consulta', 'realizada',
+   current_date + time '09:00', current_date + time '09:30',
+   current_date + time '08:52', current_date + time '09:03', current_date + time '09:28',
+   'pix', 350.00, '11111111-1111-4111-8111-111111111111'),
+  ('aaaaaaaa-0000-4000-8000-000000000022', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'aaaaaaaa-0000-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000012',
+   'aaaaaaaa-0000-4000-8000-000000000003', 'consulta', 'aguardando',
+   current_date + time '10:00', current_date + time '10:30',
+   current_date + time '09:47', null, null,
+   'particular', 350.00, '33333333-3333-4333-8333-333333333333'),
+  ('aaaaaaaa-0000-4000-8000-000000000023', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'aaaaaaaa-0000-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000013',
+   'aaaaaaaa-0000-4000-8000-000000000003', 'retorno', 'confirmada',
+   current_date + time '11:00', current_date + time '11:30',
+   null, null, null,
+   'particular', 180.00, '33333333-3333-4333-8333-333333333333'),
+  ('aaaaaaaa-0000-4000-8000-000000000024', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'aaaaaaaa-0000-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000014',
+   'aaaaaaaa-0000-4000-8000-000000000003', 'consulta', 'cancelada',
+   current_date + time '14:00', current_date + time '14:30',
+   null, null, null,
+   'particular', 350.00, '33333333-3333-4333-8333-333333333333'),
+  ('aaaaaaaa-0000-4000-8000-000000000025', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'aaaaaaaa-0000-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000015',
+   'aaaaaaaa-0000-4000-8000-000000000003', 'consulta', 'faltou',
+   current_date + time '15:00', current_date + time '15:30',
+   null, null, null,
+   'particular', 350.00, '33333333-3333-4333-8333-333333333333'),
+  ('aaaaaaaa-0000-4000-8000-000000000026', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'aaaaaaaa-0000-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000016',
+   'aaaaaaaa-0000-4000-8000-000000000003', 'consulta', 'agendada',
+   current_date + interval '1 day' + time '09:00',
+   current_date + interval '1 day' + time '09:30',
+   null, null, null,
+   'particular', 350.00, '33333333-3333-4333-8333-333333333333'),
+  ('aaaaaaaa-0000-4000-8000-000000000027', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'aaaaaaaa-0000-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000011',
+   'aaaaaaaa-0000-4000-8000-000000000003', 'retorno', 'realizada',
+   current_date - interval '1 day' + time '10:00',
+   current_date - interval '1 day' + time '10:30',
+   current_date - interval '1 day' + time '09:55',
+   current_date - interval '1 day' + time '10:02',
+   current_date - interval '1 day' + time '10:26',
+   'particular', 0.00, '33333333-3333-4333-8333-333333333333');
+
+update appointments
+set cancellation_reason = 'Paciente solicitou reagendamento.'
+where id = 'aaaaaaaa-0000-4000-8000-000000000024';
+
+-- Financeiro de demonstração --------------------------------------------------
+insert into financial_transactions
+  (clinic_id, unit_id, category_id, type, description, amount, due_date,
+   paid_at, status, payment_method, patient_id, appointment_id, professional_id,
+   created_by)
+values
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'aaaaaaaa-0000-4000-8000-000000000001',
+   (select id from financial_categories where clinic_id is null and name = 'Consulta' and type = 'receita'),
+   'receita', 'Consulta — Mariana Alves Souza', 350.00, current_date, current_date, 'pago', 'pix',
+   'aaaaaaaa-0000-4000-8000-000000000011', 'aaaaaaaa-0000-4000-8000-000000000021',
+   'aaaaaaaa-0000-4000-8000-000000000003', '44444444-4444-4444-8444-444444444444'),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'aaaaaaaa-0000-4000-8000-000000000001',
+   (select id from financial_categories where clinic_id is null and name = 'Consulta' and type = 'receita'),
+   'receita', 'Consulta — João Pedro Lima', 350.00, current_date + 7, null, 'pendente', 'particular',
+   'aaaaaaaa-0000-4000-8000-000000000012', null,
+   'aaaaaaaa-0000-4000-8000-000000000003', '44444444-4444-4444-8444-444444444444'),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'aaaaaaaa-0000-4000-8000-000000000001',
+   (select id from financial_categories where clinic_id is null and name = 'Aluguel' and type = 'despesa'),
+   'despesa', 'Aluguel da unidade Paulista', 4200.00, current_date + 5, null, 'pendente', 'boleto',
+   null, null, null, '44444444-4444-4444-8444-444444444444'),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'aaaaaaaa-0000-4000-8000-000000000001',
+   (select id from financial_categories where clinic_id is null and name = 'Materiais' and type = 'despesa'),
+   'despesa', 'Materiais de consumo', 680.00, current_date - 2, current_date - 2, 'pago', 'cartao_credito',
+   null, null, null, '44444444-4444-4444-8444-444444444444');
+
+-- Exames pendentes de demonstração --------------------------------------------
+insert into exam_orders
+  (id, clinic_id, patient_id, professional_id, appointment_id, order_date,
+   priority, status, laboratory, clinical_indication, verification_code, created_by)
+values
+  ('aaaaaaaa-0000-4000-8000-000000000031', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'aaaaaaaa-0000-4000-8000-000000000011', 'aaaaaaaa-0000-4000-8000-000000000003',
+   'aaaaaaaa-0000-4000-8000-000000000021', now() - interval '2 days',
+   'rotina', 'solicitado', 'Laboratório Demonstração', 'Acompanhamento clínico.',
+   'DEMO-EX-001', '22222222-2222-4222-8222-222222222222'),
+  ('aaaaaaaa-0000-4000-8000-000000000032', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'aaaaaaaa-0000-4000-8000-000000000012', 'aaaaaaaa-0000-4000-8000-000000000003',
+   null, now() - interval '5 days',
+   'urgente', 'em_analise', 'Laboratório Demonstração', 'Investigação de quadro agudo.',
+   'DEMO-EX-002', '22222222-2222-4222-8222-222222222222');
+
+insert into exam_order_items (clinic_id, exam_order_id, exam_name, tuss_code, status, sort_order)
+values
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'aaaaaaaa-0000-4000-8000-000000000031', 'Hemograma completo', '40304361', 'solicitado', 10),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'aaaaaaaa-0000-4000-8000-000000000031', 'Glicemia de jejum', '40302032', 'solicitado', 20),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'aaaaaaaa-0000-4000-8000-000000000032', 'PCR — Proteína C reativa', '40316390', 'em_analise', 10);
+
+-- Notificações de demonstração ------------------------------------------------
+insert into notifications (clinic_id, user_id, type, title, body, data)
+values
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '11111111-1111-4111-8111-111111111111',
+   'consulta', 'Agenda do dia organizada', '5 consultas previstas para hoje na Unidade Paulista.',
+   '{"demo": true}'::jsonb),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '11111111-1111-4111-8111-111111111111',
+   'financeiro', 'Contas a receber', '1 recebimento pendente nesta semana.',
+   '{"demo": true}'::jsonb);
+
+commit;
+]]></sql>
+  </seed>
+  <notes>
+    <note>Aplicar as migrations em ordem alfabética (001..017).</note>
+    <note>Executar em transação única por migration; set timezone to America/Sao_Paulo.</note>
+    <note>Criar a role clinicos_app antes de aplicar 010_grants.sql.</note>
+    <note>Em produção defina DATABASE_URL e APP_DATABASE_URL (role clinicos_app) e AUTH_SECRET (>=32 chars).</note>
+    <note>PGlite (.data/clinicos) é apenas para desenvolvimento local.</note>
+  </notes>
+</database>
