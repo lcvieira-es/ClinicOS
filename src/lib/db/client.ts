@@ -2,11 +2,9 @@ import 'server-only';
 
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { PGlite } from '@electric-sql/pglite';
 import { Pool, type PoolClient } from 'pg';
 
 export type DbRow = Record<string, unknown>;
-
 export interface Queryable {
   query<T = DbRow>(sql: string, params?: unknown[]): Promise<T[]>;
 }
@@ -14,15 +12,20 @@ export interface Queryable {
 type SessionQuery = (sql: string, params?: unknown[]) => Promise<DbRow[]>;
 
 const globalForDb = globalThis as unknown as {
-  __clinicosPglite?: PGlite;
+  __clinicosPglite?: unknown;
   __clinicosAppPool?: Pool;
   __clinicosAdminPool?: Pool;
+  __clinicosPgliteModule?: Promise<{ PGlite: new (dataDir: string) => unknown }>;
 };
 
 export function isPostgres(): boolean {
   return Boolean(process.env.DATABASE_URL);
 }
 
+/**
+ * Produção/PostgreSQL: DATABASE_URL presente -> nunca toca em PGlite.
+ * Desenvolvimento: usa PGlite local em .data/clinicos.
+ */
 function pgliteDataDir(): string {
   const configured = process.env.PGLITE_DATA_DIR ?? '.data/clinicos';
   return path.isAbsolute(configured)
@@ -30,13 +33,28 @@ function pgliteDataDir(): string {
     : path.join(/*turbopackIgnore: true*/ process.cwd(), configured);
 }
 
-export function getPglite(): PGlite {
-  if (!globalForDb.__clinicosPglite) {
-    const dataDir = pgliteDataDir();
-    // O PGlite não cria diretórios-pai; garantimos a árvore antes de abrir.
-    mkdirSync(dataDir, { recursive: true });
-    globalForDb.__clinicosPglite = new PGlite(dataDir);
+// Importação LAZY: o módulo PGlite (WASM) só é carregado em desenvolvimento,
+// nunca no bundle de produção do Vercel.
+async function loadPgliteModule(): Promise<{ PGlite: new (dataDir: string) => any }> {
+  if (!globalForDb.__clinicosPgliteModule) {
+    globalForDb.__clinicosPgliteModule = import('@electric-sql/pglite') as Promise<any>;
   }
+  return globalForDb.__clinicosPgliteModule;
+}
+
+export async function getPglite(): Promise<any> {
+  if (isPostgres()) {
+    throw new Error(
+      'PGlite não pode ser usado quando DATABASE_URL está definida (produção).',
+    );
+  }
+  if (globalForDb.__clinicosPglite) {
+    return globalForDb.__clinicosPglite;
+  }
+  const { PGlite } = await loadPgliteModule();
+  const dataDir = pgliteDataDir();
+  mkdirSync(dataDir, { recursive: true });
+  globalForDb.__clinicosPglite = new PGlite(dataDir);
   return globalForDb.__clinicosPglite;
 }
 
@@ -85,7 +103,8 @@ export async function rawTrustedQuery<T = DbRow>(
   params: unknown[] = [],
 ): Promise<T[]> {
   if (!isPostgres()) {
-    const result = await getPglite().query<DbRow>(sql, params);
+    const db = await getPglite();
+    const result = await db.query(sql, params);
     return result.rows as T[];
   }
   const result = await getAdminPool().query(sql, params);
@@ -117,8 +136,8 @@ export async function rawTransaction<T>(
   callback: (tx: Queryable) => Promise<T>,
 ): Promise<T> {
   if (!isPostgres()) {
-    const db = getPglite();
-    return db.transaction(async (transaction) => {
+    const db = await getPglite();
+    return db.transaction(async (transaction: any) => {
       const query: SessionQuery = async (sql, params = []) => {
         const result = await transaction.query(sql, params);
         return result.rows as DbRow[];
@@ -155,7 +174,7 @@ export async function rawTransaction<T>(
 
 export async function closeDatabase(): Promise<void> {
   if (globalForDb.__clinicosPglite) {
-    await globalForDb.__clinicosPglite.close();
+    await (globalForDb.__clinicosPglite as any).close();
     globalForDb.__clinicosPglite = undefined;
   }
   await globalForDb.__clinicosAppPool?.end();

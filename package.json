@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "db:check": "node tools/db-check.mjs",
     "db:setup": "node tools/db-setup.mjs",
+    "db:setup-pg": "node tools/apply-migrations-pg.mjs",
     "rls:check": "node tools/rls-check.mjs"
   },
   "dependencies": {

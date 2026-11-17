@@ -12,7 +12,7 @@ const globalForBootstrap = globalThis as unknown as {
 };
 
 async function applyMigrations(): Promise<void> {
-  const db = getPglite();
+  const db = await getPglite();
   const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 
   await db.exec(`set timezone to 'America/Sao_Paulo'`);
@@ -37,7 +37,7 @@ async function applyMigrations(): Promise<void> {
 }
 
 async function seedDemoData(): Promise<void> {
-  const db = getPglite();
+  const db = await getPglite();
   const seedPath = path.join(process.cwd(), 'db', 'dev-seed.sql');
   const seedSql = await readFile(seedPath, 'utf8');
   const passwordHash = await hash(DEMO_PASSWORD, {
@@ -49,11 +49,17 @@ async function seedDemoData(): Promise<void> {
 }
 
 async function bootstrapLocalDatabase(): Promise<void> {
-  const db = getPglite();
+  // Em produção (PostgreSQL externo) as migrations e o seed são aplicados
+  // fora da aplicação (ver tools/apply-migrations-pg.mjs). Nada de PGlite.
+  if (isPostgres()) {
+    return;
+  }
+
+  const db = await getPglite();
   // A conexão PGlite é de sessão única; este ajuste vale para o processo inteiro.
   await db.exec(`set timezone to 'America/Sao_Paulo'`);
 
-  const existing = await db.query<{ present: boolean }>(
+  const existing = await db.query(
     `select to_regclass('public.users') is not null as present`,
   );
 
@@ -69,7 +75,8 @@ async function bootstrapLocalDatabase(): Promise<void> {
 
 /**
  * Garante que o banco local PGlite exista e esteja migrado/semeado.
- * Em PostgreSQL de produção as migrations são aplicadas fora do app.
+ * Em PostgreSQL de produção as migrations são aplicadas fora do app
+ * (tools/apply-migrations-pg.mjs) e o bootstrap é no-op.
  */
 export function ensureDatabaseReady(): Promise<void> {
   if (isPostgres()) {

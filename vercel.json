@@ -1,0 +1,14 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "regions": ["gru1"],
+  "functions": {
+    "app/api/**": {
+      "maxDuration": 60
+    },
+    "app/**/*.tsx": {
+      "maxDuration": 60
+    }
+  }
+}
