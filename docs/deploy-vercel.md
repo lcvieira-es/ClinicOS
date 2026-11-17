@@ -8,6 +8,7 @@
 | `APP_DATABASE_URL` | recomendado | `postgresql://clinicos_app:senha@host:5432/clinicos` (runtime, sem BYPASSRLS) |
 | `DB_SET_ROLE` | não | `true` se a role `clinicos_app` deve ser aplicada por transação (default `true`) |
 | `AUTH_SECRET` | sim | chave aleatória com **mínimo 32 caracteres** |
+| `CRON_SECRET` | recomendado | segredo para proteger `/api/cron/audit-check` (Vercel envia `Authorization: Bearer <secret>`) |
 | `DATABASE_POOL_MAX` | não | tamanho do pool (default `10`) |
 | `NODE_ENV` | automático | `production` (definido pela Vercel) |
 

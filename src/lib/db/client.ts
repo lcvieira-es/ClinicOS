@@ -19,7 +19,9 @@ const globalForDb = globalThis as unknown as {
 };
 
 export function isPostgres(): boolean {
-  return Boolean(process.env.DATABASE_URL);
+  return Boolean(process.env.DATABASE_URL || 
+    process.env.APP_DATABASE_URL
+  );
 }
 
 /**
@@ -60,35 +62,47 @@ export async function getPglite(): Promise<any> {
 
 function getAppPool(): Pool {
   const connectionString =
-    process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL;
+    process.env.APP_DATABASE_URL;
   if (!connectionString) {
-    throw new Error('APP_DATABASE_URL ou DATABASE_URL não configurada.');
+    throw new Error('APP_DATABASE_URL não configurada. A conexão da aplicação não pode ser inicializada.');
   }
   if (!globalForDb.__clinicosAppPool) {
     globalForDb.__clinicosAppPool = new Pool({
       connectionString,
-      max: Number(process.env.DATABASE_POOL_MAX ?? 10),
+      max: Number(process.env.DATABASE_POOL_MAX ?? 5),
       idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 10_000,
       options: '-c timezone=America/Sao_Paulo',
     });
+
+    globalForDb.__clinicosAdminPool?.on('error',(error) => {
+     console.error('[ClinicOS[APP_POOL',error.message); 
+    });
   }
+
   return globalForDb.__clinicosAppPool;
 }
 
 function getAdminPool(): Pool {
   const connectionString =
-    process.env.DATABASE_URL ?? process.env.APP_DATABASE_URL;
+    process.env.DATABASE_URL; 
   if (!connectionString) {
-    throw new Error('DATABASE_URL não configurada.');
+    throw new Error('DATABASE_URL não configurada. A conexão administrativanão pode ser inicializada.');
   }
   if (!globalForDb.__clinicosAdminPool) {
     globalForDb.__clinicosAdminPool = new Pool({
       connectionString,
       max: 2,
       idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 10_000,
       options: '-c timezone=America/Sao_Paulo',
     });
+
+    globalForDb.__clinicosAdminPool.on('error', (error) => {
+      console.error('[ClinicOS][ADMIN_POOL]', error.message);
+    })
   }
+  
   return globalForDb.__clinicosAdminPool;
 }
 
