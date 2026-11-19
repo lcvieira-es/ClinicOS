@@ -1,11 +1,31 @@
 # Deploy no Vercel (ClinicOS)
 
+## 0. Supabase — criação do banco
+
+1. Crie um projeto em https://supabase.com (região mais próxima, ex.: `South America (São Paulo)`).
+2. Em **Project Settings → Database**, copie:
+   - **Connection string (Transaction pooler)** → porta `6543` (usar em `DATABASE_URL` na Vercel).
+   - **Connection string (Direct)** → porta `5432` (usar para migrations).
+3. Em **SQL Editor**, execute:
+   ```sql
+   create extension if not exists pgcrypto;
+   create extension if not exists pg_trgm;
+   create extension if not exists btree_gist;
+   create role clinicos_app login password 'SENHA_FORTE' nosuperuser nobypassrls;
+   ```
+4. Teste a conexão localmente:
+   ```bash
+   DATABASE_URL="postgresql://postgres:SENHA@db.xxx.supabase.co:5432/postgres?sslmode=require" \
+     DB_SSL=true DB_SSL_REJECT_UNAUTHORIZED=false \
+     npm run db:test-connection
+   ```
+
 ## 1. Variáveis de ambiente (Vercel Dashboard → Settings → Environment Variables)
 
 | Variável | Obrigatória | Valor |
 |---|---|---|
-| `DATABASE_URL` | sim | `postgresql://clinicos_owner:senha@host:5432/clinicos` (PostgreSQL 16+) |
-| `APP_DATABASE_URL` | recomendado | `postgresql://clinicos_app:senha@host:5432/clinicos` (runtime, sem BYPASSRLS) |
+| `DATABASE_URL` | sim | Pooler do Supabase (porta `6543`): `postgresql://postgres.xxx:senha@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require` |
+| `APP_DATABASE_URL` | recomendado | Conexão direta (porta `5432`): `postgresql://postgres:senha@db.xxx.supabase.co:5432/postgres?sslmode=require` (runtime, role `clinicos_app`) |
 | `DB_SET_ROLE` | não | `true` se a role `clinicos_app` deve ser aplicada por transação (default `true`) |
 | `AUTH_SECRET` | sim | chave aleatória com **mínimo 32 caracteres** |
 | `CRON_SECRET` | recomendado | segredo para proteger `/api/cron/audit-check` (Vercel envia `Authorization: Bearer <secret>`) |

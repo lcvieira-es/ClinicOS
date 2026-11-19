@@ -12,6 +12,7 @@
     "db:setup": "node tools/db-setup.mjs",
     "db:setup-pg": "node tools/apply-migrations-pg.mjs",
     "db:seed-prod": "node tools/seed-production.mjs",
+    "db:test-connection": "node tools/test-db-connection.mjs",
     "rls:check": "node tools/rls-check.mjs"
   },
   "dependencies": {
