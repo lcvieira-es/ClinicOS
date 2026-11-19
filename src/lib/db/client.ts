@@ -19,9 +19,7 @@ const globalForDb = globalThis as unknown as {
 };
 
 export function isPostgres(): boolean {
-  return Boolean(process.env.DATABASE_URL || 
-    process.env.APP_DATABASE_URL postgres://postgres.ljcxepiyhlhqeozwcwen:Pr0j3to-G35t%400-d3-C7in1c%40s@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require
-  );
+  return Boolean(process.env.DATABASE_URL || process.env.APP_DATABASE_URL);
 }
 
 /**
@@ -60,49 +58,63 @@ export async function getPglite(): Promise<any> {
   return globalForDb.__clinicosPglite;
 }
 
+/**
+ * Monta a configuração de SSL para o pool.
+ * - DB_SSL=true força SSL.
+ * - A presença de sslmode=require na connection string também ativa SSL.
+ * - DB_SSL_REJECT_UNAUTHORIZED=false desativa a verificação do certificado
+ *   (útil em ambientes com certificado autoassinado, como alguns hosts).
+ */
+function buildSsl(connectionString: string): { rejectUnauthorized: boolean } | undefined {
+  const forced = process.env.DB_SSL === 'true';
+  const fromUrl = /sslmode=require/i.test(connectionString);
+  if (!forced && !fromUrl) return undefined;
+  return {
+    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+  };
+}
+
 function getAppPool(): Pool {
   const connectionString =
-    process.env.APP_DATABASE_URL;
+    process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL;
   if (!connectionString) {
-    throw new Error('APP_DATABASE_URL não configurada. A conexão da aplicação não pode ser inicializada.');
+    throw new Error('APP_DATABASE_URL ou DATABASE_URL não configurada.');
   }
   if (!globalForDb.__clinicosAppPool) {
     globalForDb.__clinicosAppPool = new Pool({
       connectionString,
-      max: Number(process.env.DATABASE_POOL_MAX ?? 5),
+      max: Number(process.env.DATABASE_POOL_MAX ?? 10),
       idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 10_000,
       options: '-c timezone=America/Sao_Paulo',
+      ssl: buildSsl(connectionString),
     });
 
-    globalForDb.__clinicosAdminPool?.on('error',(error) => {
-     console.error('[ClinicOS[APP_POOL',error.message); 
+    globalForDb.__clinicosAppPool.on('error', (error) => {
+      console.error('[ClinicOS][APP_POOL]', error.message);
     });
   }
-
   return globalForDb.__clinicosAppPool;
 }
 
 function getAdminPool(): Pool {
   const connectionString =
-    process.env.DATABASE_URL; 
+    process.env.DATABASE_URL ?? process.env.APP_DATABASE_URL;
   if (!connectionString) {
-    throw new Error('DATABASE_URL não configurada. A conexão administrativanão pode ser inicializada.');
+    throw new Error('DATABASE_URL ou APP_DATABASE_URL não configurada.');
   }
   if (!globalForDb.__clinicosAdminPool) {
     globalForDb.__clinicosAdminPool = new Pool({
       connectionString,
       max: 2,
       idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 10_000,
       options: '-c timezone=America/Sao_Paulo',
+      ssl: buildSsl(connectionString),
     });
 
     globalForDb.__clinicosAdminPool.on('error', (error) => {
       console.error('[ClinicOS][ADMIN_POOL]', error.message);
-    })
+    });
   }
-  
   return globalForDb.__clinicosAdminPool;
 }
 
