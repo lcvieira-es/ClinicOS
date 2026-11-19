@@ -20,7 +20,7 @@ const globalForDb = globalThis as unknown as {
 
 export function isPostgres(): boolean {
   return Boolean(process.env.DATABASE_URL || 
-    process.env.APP_DATABASE_URL
+    process.env.APP_DATABASE_URL postgres://postgres.ljcxepiyhlhqeozwcwen:Pr0j3to-G35t%400-d3-C7in1c%40s@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require
   );
 }
 
