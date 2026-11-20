@@ -64,13 +64,27 @@ export async function getPglite(): Promise<any> {
  * - A presença de sslmode=require na connection string também ativa SSL.
  * - DB_SSL_REJECT_UNAUTHORIZED=false desativa a verificação do certificado
  *   (útil em ambientes com certificado autoassinado, como alguns hosts).
- */
+ *
 function buildSsl(connectionString: string): { rejectUnauthorized: boolean } | undefined {
   const forced = process.env.DB_SSL === 'true';
   const fromUrl = /sslmode=require/i.test(connectionString);
   if (!forced && !fromUrl) return undefined;
   return {
     rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+  };
+}
+*/
+function buildSsl(rawConnectionString: string): PoolConfig['ssl'] {
+  const isLocal =
+    rawConnectionString.includes('localhost') ||
+    rawConnectionString.includes('127.0.0.1');
+
+  if (isLocal) {
+    return false;
+  }
+
+  return {
+    rejectUnauthorized: false,
   };
 }
 
