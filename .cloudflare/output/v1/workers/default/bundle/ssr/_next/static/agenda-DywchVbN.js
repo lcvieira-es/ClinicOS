@@ -1,0 +1,2 @@
+import{s as e}from"../../index.js";var t=e(`d11304cd0cbc#createAppointmentAction`,null,void 0,void 0,`createAppointmentAction`),n=e(`d11304cd0cbc#createBlockAction`,null,void 0,void 0,`createBlockAction`),r=e(`d11304cd0cbc#addToWaitingListAction`,null,void 0,void 0,`addToWaitingListAction`);export{t as n,n as r,r as t};
+//# sourceMappingURL=agenda-DywchVbN.js.map

@@ -1,0 +1,763 @@
+{
+  "_7mRzTvlv.js": {
+    "file": "_next/static/chunks/7mRzTvlv.js",
+    "name": "card",
+    "imports": [
+      "_BFkPXsMX.js",
+      "_B0PXqnjO.js"
+    ]
+  },
+  "_B0PXqnjO.js": {
+    "file": "_next/static/chunks/B0PXqnjO.js",
+    "name": "framework",
+    "imports": [
+      "_CcyWYbDU.js"
+    ]
+  },
+  "_B3s9j3e9.js": {
+    "file": "_next/static/chunks/B3s9j3e9.js",
+    "name": "copy",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "_BCX6m0Vm.js": {
+    "file": "_next/static/chunks/BCX6m0Vm.js",
+    "name": "button",
+    "imports": [
+      "_BFkKHrPs.js",
+      "_BFkPXsMX.js",
+      "_B0PXqnjO.js"
+    ]
+  },
+  "_BFUQRSlW.js": {
+    "file": "_next/static/chunks/BFUQRSlW.js",
+    "name": "input",
+    "imports": [
+      "_BFkPXsMX.js",
+      "_B0PXqnjO.js"
+    ]
+  },
+  "_BFkKHrPs.js": {
+    "file": "_next/static/chunks/BFkKHrPs.js",
+    "name": "link",
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js"
+    ],
+    "dynamicImports": [
+      "_BZ0GlUbr.js"
+    ]
+  },
+  "_BFkPXsMX.js": {
+    "file": "_next/static/chunks/BFkPXsMX.js",
+    "name": "utils"
+  },
+  "_BIC3B_cA.js": {
+    "file": "_next/static/chunks/BIC3B_cA.js",
+    "name": "message-circle",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "_BLo1RiK5.js": {
+    "file": "_next/static/chunks/BLo1RiK5.js",
+    "name": "browser",
+    "imports": [
+      "_CcyWYbDU.js",
+      "_B0PXqnjO.js"
+    ]
+  },
+  "_BZ0GlUbr.js": {
+    "file": "_next/static/chunks/BZ0GlUbr.js",
+    "name": "vinext",
+    "imports": [
+      "_CcyWYbDU.js",
+      "_B0PXqnjO.js"
+    ],
+    "dynamicImports": [
+      "node_modules/vinext/dist/shims/internal/hybrid-client-route-owner.js",
+      "_BZ0GlUbr.js"
+    ]
+  },
+  "_BZhK1T3T.js": {
+    "file": "_next/static/chunks/BZhK1T3T.js",
+    "name": "circle-check",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "_BbZMeKiN.js": {
+    "file": "_next/static/chunks/BbZMeKiN.js",
+    "name": "check",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "_BfHO-KHG.js": {
+    "file": "_next/static/chunks/BfHO-KHG.js",
+    "name": "users",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "_Bh6mkkBB.js": {
+    "file": "_next/static/chunks/Bh6mkkBB.js",
+    "name": "trash",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "_C8bEAOzT.js": {
+    "file": "_next/static/chunks/C8bEAOzT.js",
+    "name": "Icon",
+    "imports": [
+      "_CcyWYbDU.js",
+      "_B0PXqnjO.js"
+    ]
+  },
+  "_CS-fDnTM.js": {
+    "file": "_next/static/chunks/CS-fDnTM.js",
+    "name": "lock",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "_CVBKW70a.js": {
+    "file": "_next/static/chunks/CVBKW70a.js",
+    "name": "format"
+  },
+  "_Cbft1ij1.js": {
+    "file": "_next/static/chunks/Cbft1ij1.js",
+    "name": "plus",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "_CcQFsJKH.js": {
+    "file": "_next/static/chunks/CcQFsJKH.js",
+    "name": "createLucideIcon",
+    "imports": [
+      "_CcyWYbDU.js",
+      "_B0PXqnjO.js",
+      "_C8bEAOzT.js"
+    ]
+  },
+  "_CcyWYbDU.js": {
+    "file": "_next/static/chunks/CcyWYbDU.js",
+    "name": "rolldown-runtime"
+  },
+  "_CfaMF3Th.js": {
+    "file": "_next/static/chunks/CfaMF3Th.js",
+    "name": "arrow-right",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "_CzdSkSgg.js": {
+    "file": "_next/static/chunks/CzdSkSgg.js",
+    "name": "actions",
+    "imports": [
+      "_BLo1RiK5.js"
+    ]
+  },
+  "_D7bkXurl.js": {
+    "file": "_next/static/chunks/D7bkXurl.js",
+    "name": "save",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "_DAZDC_b_.js": {
+    "file": "_next/static/chunks/DAZDC_b_.js",
+    "name": "agenda",
+    "imports": [
+      "_BLo1RiK5.js"
+    ]
+  },
+  "_D_K7ZoDS.js": {
+    "file": "_next/static/chunks/D_K7ZoDS.js",
+    "name": "building",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "_DqBlueqq.js": {
+    "file": "_next/static/chunks/DqBlueqq.js",
+    "name": "x",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "_DroH263r.js": {
+    "file": "_next/static/chunks/DroH263r.js",
+    "name": "actions",
+    "imports": [
+      "_BLo1RiK5.js"
+    ]
+  },
+  "_FBo5t-7n.js": {
+    "file": "_next/static/chunks/FBo5t-7n.js",
+    "name": "search",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "_KsCW08Pz.js": {
+    "file": "_next/static/chunks/KsCW08Pz.js",
+    "name": "sparkles",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "_Qnm02kox.js": {
+    "file": "_next/static/chunks/Qnm02kox.js",
+    "name": "nav-icon",
+    "imports": [
+      "_B0PXqnjO.js",
+      "_CcQFsJKH.js",
+      "_D_K7ZoDS.js",
+      "_BfHO-KHG.js",
+      "_BIC3B_cA.js",
+      "_w012jliG.js",
+      "_KsCW08Pz.js",
+      "_lhUPqYTB.js",
+      "_BFkPXsMX.js",
+      "_CVBKW70a.js"
+    ]
+  },
+  "_d5bgptCe.js": {
+    "file": "_next/static/chunks/d5bgptCe.js",
+    "name": "loader-circle",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "_lhUPqYTB.js": {
+    "file": "_next/static/chunks/lhUPqYTB.js",
+    "name": "wallet",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "_w012jliG.js": {
+    "file": "_next/static/chunks/w012jliG.js",
+    "name": "shield-check",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "_zq47CbtZ.js": {
+    "file": "_next/static/chunks/zq47CbtZ.js",
+    "name": "send",
+    "imports": [
+      "_CcQFsJKH.js"
+    ]
+  },
+  "node_modules/vinext/dist/server/app-browser-server-action-client.js": {
+    "file": "_next/static/chunks/DSJk6c3Z.js",
+    "name": "app-browser-server-action-client",
+    "src": "node_modules/vinext/dist/server/app-browser-server-action-client.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_BZ0GlUbr.js",
+      "_BLo1RiK5.js",
+      "virtual:vinext-app-browser-entry"
+    ]
+  },
+  "node_modules/vinext/dist/shims/internal/hybrid-client-route-owner.js": {
+    "file": "_next/static/chunks/BLKrbvrG.js",
+    "name": "hybrid-client-route-owner",
+    "src": "node_modules/vinext/dist/shims/internal/hybrid-client-route-owner.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_BZ0GlUbr.js"
+    ]
+  },
+  "virtual:vinext-app-browser-entry": {
+    "file": "_next/static/chunks/Ct1WV0fD.js",
+    "name": "index",
+    "src": "virtual:vinext-app-browser-entry",
+    "isEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_B0PXqnjO.js",
+      "_BZ0GlUbr.js",
+      "_BLo1RiK5.js"
+    ],
+    "dynamicImports": [
+      "node_modules/vinext/dist/server/app-browser-server-action-client.js",
+      "virtual:vinext-app-route-manifest"
+    ]
+  },
+  "virtual:vinext-app-route-manifest": {
+    "file": "_next/static/chunks/xKxLcNzR.js",
+    "name": "_virtual_vinext-app-route-manifest",
+    "src": "virtual:vinext-app-route-manifest",
+    "isDynamicEntry": true
+  },
+  "virtual:vinext-client-reference-chunks": {
+    "file": "_next/static/chunks/CJnE9hQs.js",
+    "name": "_virtual_vinext-client-reference-chunks",
+    "src": "virtual:vinext-client-reference-chunks",
+    "isEntry": true,
+    "imports": [
+      "_BZ0GlUbr.js"
+    ],
+    "dynamicImports": [
+      "virtual:vinext-client-reference-group-0df5491af1",
+      "virtual:vinext-client-reference-group-911c8ab642",
+      "virtual:vinext-client-reference-module/0d21809e99ab/unit-form",
+      "virtual:vinext-client-reference-module/13118c98198f/settings-form",
+      "virtual:vinext-client-reference-module/1589bd9669ee/block-form",
+      "virtual:vinext-client-reference-module/15c18cfaeeff/layout-segment-context",
+      "virtual:vinext-client-reference-module/3063c68cf83d/ia-client",
+      "virtual:vinext-client-reference-module/3515562f06c1/invite-form",
+      "virtual:vinext-client-reference-module/3f56953cc1d1/clinic-wizard",
+      "virtual:vinext-client-reference-module/4f47b2e424ad/patient-form",
+      "virtual:vinext-client-reference-module/548a31acc7b0/prontuario-form",
+      "virtual:vinext-client-reference-module/58ced48f0e96/prescription-form",
+      "virtual:vinext-client-reference-module/60d8bc828195/confirm-submit",
+      "virtual:vinext-client-reference-module/78c00b1e3e84/waiting-list-form",
+      "virtual:vinext-client-reference-module/90412deaabfe/platform-shell",
+      "virtual:vinext-client-reference-module/95e82bed567f/appointment-form",
+      "virtual:vinext-client-reference-module/9abbdcd9f23c/portal-shell",
+      "virtual:vinext-client-reference-module/a0f63a29810c/plan-manager",
+      "virtual:vinext-client-reference-module/a5cf55be89a3/clinic-shell",
+      "virtual:vinext-client-reference-module/a9a69b70889a/whatsapp-client",
+      "virtual:vinext-client-reference-module/c12a4c3fc47c/register-payment-button",
+      "virtual:vinext-client-reference-module/d91d3f18968f/consultas-filter",
+      "virtual:vinext-client-reference-module/db0c3fb50cb5/professional-form",
+      "virtual:vinext-client-reference-module/ed7806f8f9cb/exam-order-form",
+      "virtual:vinext-client-reference-module/f265e96296e0/login-form"
+    ]
+  },
+  "virtual:vinext-client-reference-group-0df5491af1": {
+    "file": "_next/static/chunks/DgFUF_2X.js",
+    "name": "_virtual_vinext-client-reference-group-0df5491af1",
+    "src": "virtual:vinext-client-reference-group-0df5491af1",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_CfaMF3Th.js",
+      "_d5bgptCe.js",
+      "_CzdSkSgg.js",
+      "_BCX6m0Vm.js",
+      "_Cbft1ij1.js"
+    ]
+  },
+  "virtual:vinext-client-reference-group-911c8ab642": {
+    "file": "_next/static/chunks/BEnY8ntJ.js",
+    "name": "_virtual_vinext-client-reference-group-911c8ab642",
+    "src": "virtual:vinext-client-reference-group-911c8ab642",
+    "isDynamicEntry": true,
+    "imports": [
+      "_BZ0GlUbr.js",
+      "_BFkKHrPs.js",
+      "_C8bEAOzT.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/0d21809e99ab/unit-form": {
+    "file": "_next/static/chunks/BgrjPE1T.js",
+    "name": "unit-form",
+    "src": "virtual:vinext-client-reference-module/0d21809e99ab/unit-form",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_d5bgptCe.js",
+      "_D7bkXurl.js",
+      "_BLo1RiK5.js",
+      "_BCX6m0Vm.js",
+      "_7mRzTvlv.js",
+      "_BFUQRSlW.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/13118c98198f/settings-form": {
+    "file": "_next/static/chunks/DOjax10g.js",
+    "name": "settings-form",
+    "src": "virtual:vinext-client-reference-module/13118c98198f/settings-form",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_D_K7ZoDS.js",
+      "_BZhK1T3T.js",
+      "_d5bgptCe.js",
+      "_KsCW08Pz.js",
+      "_CzdSkSgg.js",
+      "_BCX6m0Vm.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/1589bd9669ee/block-form": {
+    "file": "_next/static/chunks/BslYpPpZ.js",
+    "name": "block-form",
+    "src": "virtual:vinext-client-reference-module/1589bd9669ee/block-form",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_d5bgptCe.js",
+      "_D7bkXurl.js",
+      "_DAZDC_b_.js",
+      "_BCX6m0Vm.js",
+      "_BFUQRSlW.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/15c18cfaeeff/layout-segment-context": {
+    "file": "_next/static/chunks/Dy8a-LuZ.js",
+    "name": "layout-segment-context",
+    "src": "virtual:vinext-client-reference-module/15c18cfaeeff/layout-segment-context",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/3063c68cf83d/ia-client": {
+    "file": "_next/static/chunks/Bz_M673f.js",
+    "name": "ia-client",
+    "src": "virtual:vinext-client-reference-module/3063c68cf83d/ia-client",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_d5bgptCe.js",
+      "_KsCW08Pz.js",
+      "_zq47CbtZ.js",
+      "_BLo1RiK5.js",
+      "_BCX6m0Vm.js",
+      "_7mRzTvlv.js",
+      "_BFUQRSlW.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/3515562f06c1/invite-form": {
+    "file": "_next/static/chunks/CuwqEtuI.js",
+    "name": "invite-form",
+    "src": "virtual:vinext-client-reference-module/3515562f06c1/invite-form",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_d5bgptCe.js",
+      "_B3s9j3e9.js",
+      "_BbZMeKiN.js",
+      "_CcQFsJKH.js",
+      "_BLo1RiK5.js",
+      "_BCX6m0Vm.js",
+      "_BFUQRSlW.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/3f56953cc1d1/clinic-wizard": {
+    "file": "_next/static/chunks/DtwN7UvZ.js",
+    "name": "clinic-wizard",
+    "src": "virtual:vinext-client-reference-module/3f56953cc1d1/clinic-wizard",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_BFkKHrPs.js",
+      "_CcQFsJKH.js",
+      "_CfaMF3Th.js",
+      "_D_K7ZoDS.js",
+      "_BbZMeKiN.js",
+      "_BZhK1T3T.js",
+      "_B3s9j3e9.js",
+      "_BfHO-KHG.js",
+      "_d5bgptCe.js",
+      "_CS-fDnTM.js",
+      "_w012jliG.js",
+      "_CzdSkSgg.js",
+      "_CVBKW70a.js",
+      "_BCX6m0Vm.js",
+      "_BFkPXsMX.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/4f47b2e424ad/patient-form": {
+    "file": "_next/static/chunks/CELx0j7C.js",
+    "name": "patient-form",
+    "src": "virtual:vinext-client-reference-module/4f47b2e424ad/patient-form",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_d5bgptCe.js",
+      "_D7bkXurl.js",
+      "_BLo1RiK5.js",
+      "_BCX6m0Vm.js",
+      "_7mRzTvlv.js",
+      "_BFUQRSlW.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/548a31acc7b0/prontuario-form": {
+    "file": "_next/static/chunks/CxifbT5J.js",
+    "name": "prontuario-form",
+    "src": "virtual:vinext-client-reference-module/548a31acc7b0/prontuario-form",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_d5bgptCe.js",
+      "_D7bkXurl.js",
+      "_BLo1RiK5.js",
+      "_BCX6m0Vm.js",
+      "_7mRzTvlv.js",
+      "_BFUQRSlW.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/58ced48f0e96/prescription-form": {
+    "file": "_next/static/chunks/BAgxFAeh.js",
+    "name": "prescription-form",
+    "src": "virtual:vinext-client-reference-module/58ced48f0e96/prescription-form",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_d5bgptCe.js",
+      "_Cbft1ij1.js",
+      "_Bh6mkkBB.js",
+      "_D7bkXurl.js",
+      "_BLo1RiK5.js",
+      "_BCX6m0Vm.js",
+      "_7mRzTvlv.js",
+      "_BFUQRSlW.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/60d8bc828195/confirm-submit": {
+    "file": "_next/static/chunks/DWADJVlh.js",
+    "name": "confirm-submit",
+    "src": "virtual:vinext-client-reference-module/60d8bc828195/confirm-submit",
+    "isDynamicEntry": true,
+    "imports": [
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/78c00b1e3e84/waiting-list-form": {
+    "file": "_next/static/chunks/Cx7KTrSl.js",
+    "name": "waiting-list-form",
+    "src": "virtual:vinext-client-reference-module/78c00b1e3e84/waiting-list-form",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_d5bgptCe.js",
+      "_D7bkXurl.js",
+      "_DAZDC_b_.js",
+      "_BCX6m0Vm.js",
+      "_BFUQRSlW.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/90412deaabfe/platform-shell": {
+    "file": "_next/static/chunks/yh0_lK-b.js",
+    "name": "platform-shell",
+    "src": "virtual:vinext-client-reference-module/90412deaabfe/platform-shell",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_BFkKHrPs.js",
+      "_B0PXqnjO.js",
+      "_FBo5t-7n.js",
+      "_D_K7ZoDS.js",
+      "_CcQFsJKH.js",
+      "_Qnm02kox.js",
+      "_w012jliG.js",
+      "_DqBlueqq.js",
+      "_DroH263r.js",
+      "_BFkPXsMX.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/95e82bed567f/appointment-form": {
+    "file": "_next/static/chunks/jX9RxxYA.js",
+    "name": "appointment-form",
+    "src": "virtual:vinext-client-reference-module/95e82bed567f/appointment-form",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_d5bgptCe.js",
+      "_D7bkXurl.js",
+      "_DAZDC_b_.js",
+      "_BCX6m0Vm.js",
+      "_7mRzTvlv.js",
+      "_BFUQRSlW.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/9abbdcd9f23c/portal-shell": {
+    "file": "_next/static/chunks/Cj7H4J7i.js",
+    "name": "portal-shell",
+    "src": "virtual:vinext-client-reference-module/9abbdcd9f23c/portal-shell",
+    "isDynamicEntry": true,
+    "imports": [
+      "_BZ0GlUbr.js",
+      "_BFkKHrPs.js",
+      "_Qnm02kox.js",
+      "_w012jliG.js",
+      "_DroH263r.js",
+      "_BFkPXsMX.js",
+      "_B0PXqnjO.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/a0f63a29810c/plan-manager": {
+    "file": "_next/static/chunks/C6SoXt4W.js",
+    "name": "plan-manager",
+    "src": "virtual:vinext-client-reference-module/a0f63a29810c/plan-manager",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_D_K7ZoDS.js",
+      "_BbZMeKiN.js",
+      "_BZhK1T3T.js",
+      "_BfHO-KHG.js",
+      "_CcQFsJKH.js",
+      "_Cbft1ij1.js",
+      "_KsCW08Pz.js",
+      "_lhUPqYTB.js",
+      "_DqBlueqq.js",
+      "_CzdSkSgg.js",
+      "_CVBKW70a.js",
+      "_BFkPXsMX.js",
+      "_BCX6m0Vm.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/a5cf55be89a3/clinic-shell": {
+    "file": "_next/static/chunks/CxzViwq8.js",
+    "name": "clinic-shell",
+    "src": "virtual:vinext-client-reference-module/a5cf55be89a3/clinic-shell",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_BFkKHrPs.js",
+      "_B0PXqnjO.js",
+      "_FBo5t-7n.js",
+      "_CcQFsJKH.js",
+      "_Qnm02kox.js",
+      "_w012jliG.js",
+      "_DqBlueqq.js",
+      "_DroH263r.js",
+      "_BFkPXsMX.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/a9a69b70889a/whatsapp-client": {
+    "file": "_next/static/chunks/6gewIkIr.js",
+    "name": "whatsapp-client",
+    "src": "virtual:vinext-client-reference-module/a9a69b70889a/whatsapp-client",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_d5bgptCe.js",
+      "_zq47CbtZ.js",
+      "_BIC3B_cA.js",
+      "_BLo1RiK5.js",
+      "_BCX6m0Vm.js",
+      "_7mRzTvlv.js",
+      "_BFUQRSlW.js",
+      "_BFkPXsMX.js",
+      "_CVBKW70a.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/c12a4c3fc47c/register-payment-button": {
+    "file": "_next/static/chunks/B67u_yAL.js",
+    "name": "register-payment-button",
+    "src": "virtual:vinext-client-reference-module/c12a4c3fc47c/register-payment-button",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_BZhK1T3T.js",
+      "_d5bgptCe.js",
+      "_CzdSkSgg.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/d91d3f18968f/consultas-filter": {
+    "file": "_next/static/chunks/D_AEhLS5.js",
+    "name": "consultas-filter",
+    "src": "virtual:vinext-client-reference-module/d91d3f18968f/consultas-filter",
+    "isDynamicEntry": true,
+    "imports": [
+      "_BZ0GlUbr.js",
+      "_BFUQRSlW.js",
+      "_B0PXqnjO.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/db0c3fb50cb5/professional-form": {
+    "file": "_next/static/chunks/DBXZZQyF.js",
+    "name": "professional-form",
+    "src": "virtual:vinext-client-reference-module/db0c3fb50cb5/professional-form",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_d5bgptCe.js",
+      "_D7bkXurl.js",
+      "_BLo1RiK5.js",
+      "_BCX6m0Vm.js",
+      "_7mRzTvlv.js",
+      "_BFUQRSlW.js",
+      "_BFkPXsMX.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/ed7806f8f9cb/exam-order-form": {
+    "file": "_next/static/chunks/BsZt9_uF.js",
+    "name": "exam-order-form",
+    "src": "virtual:vinext-client-reference-module/ed7806f8f9cb/exam-order-form",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_d5bgptCe.js",
+      "_Cbft1ij1.js",
+      "_Bh6mkkBB.js",
+      "_D7bkXurl.js",
+      "_BLo1RiK5.js",
+      "_BCX6m0Vm.js",
+      "_7mRzTvlv.js",
+      "_BFUQRSlW.js"
+    ]
+  },
+  "virtual:vinext-client-reference-module/f265e96296e0/login-form": {
+    "file": "_next/static/chunks/FwXLAafW.js",
+    "name": "login-form",
+    "src": "virtual:vinext-client-reference-module/f265e96296e0/login-form",
+    "isDynamicEntry": true,
+    "imports": [
+      "_CcyWYbDU.js",
+      "_BZ0GlUbr.js",
+      "_B0PXqnjO.js",
+      "_CfaMF3Th.js",
+      "_BZhK1T3T.js",
+      "_CcQFsJKH.js",
+      "_d5bgptCe.js",
+      "_CS-fDnTM.js",
+      "_BIC3B_cA.js",
+      "_w012jliG.js",
+      "_DroH263r.js",
+      "_BCX6m0Vm.js",
+      "_BFUQRSlW.js"
+    ]
+  }
+}

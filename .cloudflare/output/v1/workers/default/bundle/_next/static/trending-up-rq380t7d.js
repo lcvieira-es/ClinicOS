@@ -1,0 +1,2 @@
+import{t as e}from"../../vinext-stage-runtime~0virtual_vinext-response-stage~0virtual_vinext-rsc-entry~page~page~pag~ekzku2by-BVYNHUAR.js";var t={name:`trending-up`,size:24,node:[[`path`,{d:`M16 7h6v6`,key:`box55l`}],[`path`,{d:`m22 7-8.5 8.5-5-5L2 17`,key:`1t1m79`}]]};t.node;var n=e(t);export{n as t};
+//# sourceMappingURL=trending-up-rq380t7d.js.map

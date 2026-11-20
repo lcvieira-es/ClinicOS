@@ -1,0 +1,1 @@
+import{i as e,t}from"./BLo1RiK5.js";var n=e(`d11304cd0cbc#createAppointmentAction`,t,void 0,void 0,`createAppointmentAction`),r=e(`d11304cd0cbc#createBlockAction`,t,void 0,void 0,`createBlockAction`),i=e(`d11304cd0cbc#addToWaitingListAction`,t,void 0,void 0,`addToWaitingListAction`);export{n,r,i as t};

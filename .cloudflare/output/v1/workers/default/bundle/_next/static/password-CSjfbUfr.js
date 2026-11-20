@@ -1,0 +1,2 @@
+import{hash as e,verify as t}from"@node-rs/argon2";var n={memoryCost:19456,timeCost:2,parallelism:1};async function r(t){return e(t,n)}async function i(e,n){if(!e)return!1;try{return await t(e,n)}catch{return!1}}export{i as n,r as t};
+//# sourceMappingURL=password-CSjfbUfr.js.map

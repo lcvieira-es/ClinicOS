@@ -1,0 +1,2 @@
+import{t as e}from"../../vinext-stage-runtime~0virtual_vinext-response-stage~0virtual_vinext-rsc-entry~page~page~pag~ekzku2by-BVYNHUAR.js";var t={name:`arrow-right`,size:24,node:[[`path`,{d:`M5 12h14`,key:`1ays0h`}],[`path`,{d:`m12 5 7 7-7 7`,key:`xquz4c`}]]};t.node;var n=e(t);export{n as t};
+//# sourceMappingURL=arrow-right-6UoesE6s.js.map

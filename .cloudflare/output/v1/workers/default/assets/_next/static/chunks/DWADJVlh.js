@@ -1,0 +1,1 @@
+import{y as e}from"./BZ0GlUbr.js";import{r as t}from"./B0PXqnjO.js";var n=t();function r({children:e,confirm:t,className:r,disabled:i}){return(0,n.jsx)(`button`,{type:`submit`,className:r,disabled:i,onClick:e=>{window.confirm(t)||e.preventDefault()},children:e})}e(`60d8bc828195`,{get ConfirmSubmitButton(){return r}});

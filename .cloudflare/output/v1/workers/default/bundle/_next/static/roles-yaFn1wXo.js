@@ -1,0 +1,2 @@
+var e={platform_admin:`Superadministrador`,clinic_admin:`Administrador(a) da clínica`,doctor:`Médico(a)`,receptionist:`Recepção`,finance:`Financeiro`,patient:`Paciente`};function t(t){return e[t]??t}function n(e){return{platform_admin:`Superadministrador`,clinic_admin:`Administrador(a)`,doctor:`Médico(a)`,receptionist:`Recepção`,finance:`Financeiro`,patient:`Paciente`}[e]??e}export{n,t};
+//# sourceMappingURL=roles-yaFn1wXo.js.map

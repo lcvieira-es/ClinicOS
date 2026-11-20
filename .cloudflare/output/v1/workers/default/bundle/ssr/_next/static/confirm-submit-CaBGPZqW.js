@@ -1,0 +1,2 @@
+import{t as e}from"./jsx-runtime-LKYXHABd.js";var t=e();function n({children:e,confirm:n,className:r,disabled:i}){return(0,t.jsx)(`button`,{type:`submit`,className:r,disabled:i,onClick:e=>{window.confirm(n)||e.preventDefault()},children:e})}export{n as ConfirmSubmitButton};
+//# sourceMappingURL=confirm-submit-CaBGPZqW.js.map

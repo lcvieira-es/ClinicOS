@@ -1,0 +1,30 @@
+import{P as e}from"../../vinext-stage-runtime~0virtual_vinext-response-stage~0virtual_vinext-request-stage-DrYePS94.js";import"../../vinext-stage-runtime~0virtual_vinext-response-stage~0virtual_vinext-rsc-entry~cache-callabl~h053e9lc-Bau50AnE.js";import{o as t}from"../../vinext-stage-runtime~0virtual_vinext-response-stage~0virtual_vinext-rsc-entry~cache-callabl~o4mewdgk-CpMeVdIn.js";import{t as n}from"./vinext-stage-runtime~page~page~page~page~page~page~page~page~page~page~page~page~page~page~~pbll4pnl-B1t1IQjD.js";import"../../vinext-stage-runtime~0virtual_vinext-response-stage-CsSQHvW5.js";import{r,t as i}from"./module-guard-DENMAsQa.js";import{r as a}from"./db-DIZA_RBl.js";import{i as o,n as s,o as c}from"./limits-Dt0HgPSW.js";import{a as l,i as u,o as d,r as f}from"./schemas-BrTGXDGy.js";import{i as p,n as m,r as h,t as g}from"./validation-DJCTKJZG.js";var _=l({name:d().trim().min(2,`Nome da unidade obrigatório.`),type:f([`matriz`,`filial`,`consultorio`]),internalCode:d().trim().optional(),phone:d().trim().optional(),email:d().trim().email(`E-mail inválido.`).or(u(``)).optional(),cep:d().trim().optional(),address:d().trim().optional(),addressNumber:d().trim().optional(),complement:d().trim().optional(),neighborhood:d().trim().optional(),city:d().trim().optional(),state:d().trim().regex(/^[A-Z]{2}$/,`UF deve ter 2 letras.`).or(u(``)).optional(),managerName:d().trim().optional(),openingHours:d().trim().optional(),isHeadquarters:d().optional()});function v(e){return(e??``).trim()||null}async function y(e,t){let i,l;try{let e=await r(`unidades`,`unidades:create`);i=e.user.id,l=e.user.activeClinicId}catch(e){if(h(e))throw e;return{error:m(e)}}let u=_.safeParse(Object.fromEntries(t));if(!u.success)return{error:u.error.issues[0]?.message??`Dados inválidos.`};let d=u.data;try{let e=await a({userId:i,clinicId:l},async e=>{let[t,n]=await Promise.all([c(e,l),s(e)]),r=o(`unit`,t,n);if(r)throw new g(r);let i=v(d.internalCode);if(i&&(await e.query(`select id from clinic_units where internal_code = $1 limit 1`,[i])).length>0)throw new g(`Já existe uma unidade com este código interno.`);let a=(await e.query(`insert into clinic_units (
+           clinic_id, name, type, internal_code, phone, email, cep, address,
+           address_number, complement, neighborhood, city, state, manager_name,
+           opening_hours, is_headquarters, status
+         ) values (
+           $1, $2, $3::unit_type, $4, $5, $6, $7, $8,
+           $9, $10, $11, $12, $13::char(2), $14, $15, $16, 'ativa'
+         )
+         returning id`,[l,d.name,d.type,i,v(d.phone),v(d.email),v(d.cep),v(d.address),v(d.addressNumber),v(d.complement),v(d.neighborhood),v(d.city),v(d.state),v(d.managerName),v(d.openingHours),d.isHeadquarters===`on`]))[0]?.id;if(!a)throw new g(`Não foi possível salvar a unidade.`);return a});return n(`/app/unidades`),n(`/app/unidades/${e}`),{success:`Unidade cadastrada com sucesso.`,id:e}}catch(e){if(h(e))throw e;return{error:m(e)}}}async function b(e,t){let i,o;try{let e=await r(`unidades`,`unidades:edit`);i=e.user.id,o=e.user.activeClinicId}catch(e){if(h(e))throw e;return{error:m(e)}}let s=String(t.get(`unitId`)??``);if(!p(s))return{error:`Unidade inválida.`};let c=_.safeParse(Object.fromEntries(t));if(!c.success)return{error:c.error.issues[0]?.message??`Dados inválidos.`};let l=c.data;try{return await a({userId:i,clinicId:o},async e=>{if((await e.query(`select id from clinic_units where id = $1`,[s])).length===0)throw new g(`Unidade não encontrada.`);await e.query(`update clinic_units set
+           name = $2,
+           type = $3::unit_type,
+           internal_code = $4,
+           phone = $5,
+           email = $6,
+           cep = $7,
+           address = $8,
+           address_number = $9,
+           complement = $10,
+           neighborhood = $11,
+           city = $12,
+           state = $13::char(2),
+           manager_name = $14,
+           opening_hours = $15,
+           is_headquarters = $16,
+           updated_at = now()
+         where id = $1`,[s,l.name,l.type,v(l.internalCode),v(l.phone),v(l.email),v(l.cep),v(l.address),v(l.addressNumber),v(l.complement),v(l.neighborhood),v(l.city),v(l.state),v(l.managerName),v(l.openingHours),l.isHeadquarters===`on`])}),n(`/app/unidades`),n(`/app/unidades/${s}`),{success:`Unidade atualizada.`,id:s}}catch(e){if(h(e))throw e;return{error:m(e)}}}async function x(t){let r=String(t.get(`unitId`)??``),o=String(t.get(`status`)??``),s=`/app/unidades/${r}`,c=await i(`unidades`,`unidades:edit`,`/app/unidades`);p(r)&&[`ativa`,`inativa`].includes(o)||e(`/app/unidades?erro=Situa%C3%A7%C3%A3o%20inv%C3%A1lida.`);try{await a({userId:c.user.id,clinicId:c.user.activeClinicId},e=>e.query(`update clinic_units set status = $2, updated_at = now() where id = $1`,[r,o])),n(`/app/unidades`),n(s),e(`${s}?msg=Situa%C3%A7%C3%A3o%20da%20unidade%20atualizada.`)}catch(t){if(h(t))throw t;e(`${s}?erro=${encodeURIComponent(m(t))}`)}}async function S(t){let r=String(t.get(`unitId`)??``),o=await i(`unidades`,`unidades:delete`,`/app/unidades`);p(r)||e(`/app/unidades?erro=Unidade%20inv%C3%A1lida.`);try{await a({userId:o.user.id,clinicId:o.user.activeClinicId},async e=>{if(((await e.query(`select (select count(*)::int from professionals p
+                   join professional_units pu on pu.professional_id = p.id
+                   where pu.unit_id = $1) +
+                 (select count(*)::int from appointments where unit_id = $1) as total`,[r]))[0]?.total??0)>0)throw new g(`Unidade possui profissionais ou consultas vinculadas.`);await e.query(`delete from clinic_units where id = $1`,[r])}),n(`/app/unidades`),e(`/app/unidades?msg=Unidade%20exclu%C3%ADda.`)}catch(t){if(h(t))throw t;e(`/app/unidades?erro=${encodeURIComponent(m(t))}`)}}t(y,`84800a3fd867`,`createUnitAction`),t(b,`84800a3fd867`,`updateUnitAction`),t(x,`84800a3fd867`,`setUnitStatusAction`),t(S,`84800a3fd867`,`deleteUnitAction`);export{y as createUnitAction,S as deleteUnitAction,x as setUnitStatusAction,b as updateUnitAction};
+//# sourceMappingURL=units-CNvVIyxb.js.map

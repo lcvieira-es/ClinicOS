@@ -1,0 +1,1 @@
+{"version":3,"file":"page-CT1cXPKH.js","names":["redirect","ClinicIndexPage"],"sources":["../../../../../../../../src/app/(clinic)/app/page.tsx"],"sourcesContent":["import { redirect } from 'next/navigation';\n\nexport default function ClinicIndexPage() {\n  redirect('/app/painel');\n}\n"],"mappings":"A,sMAEA,SAAwBC,GAAkB,CACxCD,EAAS,aAAa,CACxB,C"}

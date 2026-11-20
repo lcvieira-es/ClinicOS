@@ -1,0 +1,2 @@
+import{t as e}from"../../vinext-stage-runtime~0virtual_vinext-response-stage~0virtual_vinext-rsc-entry~page~page~pag~ekzku2by-BVYNHUAR.js";var t={name:`clock`,size:24,node:[[`circle`,{cx:`12`,cy:`12`,r:`10`,key:`1mglay`}],[`path`,{d:`M12 6v6l4 2`,key:`mmk7yg`}]]};t.node;var n=e(t);export{n as t};
+//# sourceMappingURL=clock-e6xfz_c8.js.map

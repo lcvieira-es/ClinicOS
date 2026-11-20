@@ -1,0 +1,2 @@
+import{t as e}from"./not-found-content-BCdO2V28.js";import{t}from"../../vinext-stage-runtime~0virtual_vinext-response-stage~0virtual_vinext-rsc-entry~page~page~pag~n6n7luxa-CNb9Zhsj.js";var n=t();function r(){return(0,n.jsx)(e,{homeHref:`/app/painel`,homeLabel:`Voltar ao painel`})}export{r as default};
+//# sourceMappingURL=not-found-Bgav5Q4u.js.map

@@ -1,0 +1,2 @@
+import{w as e,x as t}from"../../index.js";import"./app-router-navigation-ChcSenR5.js";new URL(`http://vinext.invalid/`),[...t,...e];function n(e,t){return null}function r(e,t){return null}export{n as resolveHybridClientRewriteHref,r as resolveHybridClientRouteOwner};
+//# sourceMappingURL=hybrid-client-route-owner-CsRhplut.js.map

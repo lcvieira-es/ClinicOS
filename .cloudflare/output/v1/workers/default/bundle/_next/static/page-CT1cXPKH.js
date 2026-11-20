@@ -1,0 +1,2 @@
+import{P as e}from"../../vinext-stage-runtime~0virtual_vinext-response-stage~0virtual_vinext-request-stage-DrYePS94.js";import"../../vinext-stage-runtime~0virtual_vinext-response-stage-CsSQHvW5.js";function t(){e(`/app/painel`)}export{t as default};
+//# sourceMappingURL=page-CT1cXPKH.js.map

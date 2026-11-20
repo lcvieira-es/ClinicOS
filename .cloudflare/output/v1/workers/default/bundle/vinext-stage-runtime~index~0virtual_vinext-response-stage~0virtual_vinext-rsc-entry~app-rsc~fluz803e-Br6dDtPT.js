@@ -1,0 +1,2 @@
+function e(e){return e.status===101||!!e.webSocket}export{e as t};
+//# sourceMappingURL=vinext-stage-runtime~index~0virtual_vinext-response-stage~0virtual_vinext-rsc-entry~app-rsc~fluz803e-Br6dDtPT.js.map

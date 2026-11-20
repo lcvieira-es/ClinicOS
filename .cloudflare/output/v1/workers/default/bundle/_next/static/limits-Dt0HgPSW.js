@@ -1,0 +1,9 @@
+import{r as e}from"./db-DIZA_RBl.js";var t={patient:`pacientes`,professional:`profissionais`,unit:`unidades`,user:`usuários`},n={patient:`patientLimit`,professional:`professionalLimit`,unit:`unitLimit`,user:`userLimit`},r={planName:null,userLimit:0,professionalLimit:0,unitLimit:0,patientLimit:0};async function i(e,t){let n=(await e.query(`select * from app_plan_limits($1)`,[t]))[0];return n?{planName:n.plan_name,userLimit:Number(n.user_limit??0),professionalLimit:Number(n.professional_limit??0),unitLimit:Number(n.unit_limit??0),patientLimit:Number(n.patient_limit??0)}:{...r}}async function a(t,n){return e({userId:t,clinicId:n},e=>i(e,n))}async function o(e){let t=(await e.query(`select
+       (select count(*)::int from patients) as patients,
+       (select count(*)::int from professionals) as professionals,
+       (select count(*)::int from clinic_units) as units,
+       (select count(*)::int from clinic_memberships
+         where status in ('ativo', 'convidado')) +
+       (select count(*)::int from user_invites
+         where status = 'pendente' and expires_at > now()) as users`))[0];return{patient:t?.patients??0,professional:t?.professionals??0,unit:t?.units??0,user:t?.users??0}}async function s(t,n){return e({userId:t,clinicId:n},e=>o(e))}function c(e,r,i){let a=Number(r[n[e]]);if(!a||a<=0)return null;let o=i[e];if(o<a)return null;let s=r.planName?` do plano ${r.planName}`:``;return`Limite de ${t[e]} atingido${s}: ${o}/${a}. Atualize a assinatura para cadastrar novos registros.`}function l(e,r,i){let a=Number(r[n[e]]);return!a||a<=0?`${i[e]} ${t[e]} · sem cota configurada`:`${i[e]}/${a} ${t[e]}`}export{l as a,c as i,o as n,i as o,s as r,a as t};
+//# sourceMappingURL=limits-Dt0HgPSW.js.map

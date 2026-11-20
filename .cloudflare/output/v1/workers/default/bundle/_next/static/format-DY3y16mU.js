@@ -1,0 +1,2 @@
+function e(e){if(!e)return`—`;let t=e.replace(/\D/g,``);return t.length===14?t.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,`$1.$2.$3/$4-$5`):e}export{e as t};
+//# sourceMappingURL=format-DY3y16mU.js.map

@@ -1,0 +1,5 @@
+[
+  "@node-rs/argon2",
+  "pg",
+  "@electric-sql/pglite"
+]

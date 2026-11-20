@@ -1,0 +1,11 @@
+{
+  "remoteName": "origin",
+  "projects": [
+    {
+      "id": "prj_fxTsTxyWhtjWCJSxt0F5HPKTKkXw",
+      "name": "teste-clinicos",
+      "directory": ".",
+      "orgId": "team_HAiMo5tPxuFxJb0tTk7jzETb"
+    }
+  ]
+}

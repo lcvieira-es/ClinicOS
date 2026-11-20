@@ -1,0 +1,1 @@
+import{i as e,t}from"./BLo1RiK5.js";var n=e(`b2df40cfb33f#loginAction`,t,void 0,void 0,`loginAction`),r=e(`b2df40cfb33f#logoutAction`,t,void 0,void 0,`logoutAction`),i=e(`b2df40cfb33f#switchClinicAction`,t,void 0,void 0,`switchClinicAction`);export{r as n,i as r,n as t};

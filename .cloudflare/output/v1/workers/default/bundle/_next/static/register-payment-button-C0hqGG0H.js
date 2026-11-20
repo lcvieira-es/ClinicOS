@@ -1,0 +1,2 @@
+import{a as e}from"../../vinext-stage-runtime~0virtual_vinext-response-stage~0virtual_vinext-rsc-entry~cache-callabl~o4mewdgk-CpMeVdIn.js";var t=e(()=>{throw Error(`Unexpectedly client reference export 'RegisterPaymentButton' is called on server`)},`c12a4c3fc47c`,`RegisterPaymentButton`);export{t};
+//# sourceMappingURL=register-payment-button-C0hqGG0H.js.map

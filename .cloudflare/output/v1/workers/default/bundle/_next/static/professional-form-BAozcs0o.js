@@ -1,0 +1,2 @@
+import{a as e}from"../../vinext-stage-runtime~0virtual_vinext-response-stage~0virtual_vinext-rsc-entry~cache-callabl~o4mewdgk-CpMeVdIn.js";var t=e(()=>{throw Error(`Unexpectedly client reference export 'ProfessionalForm' is called on server`)},`db0c3fb50cb5`,`ProfessionalForm`);export{t};
+//# sourceMappingURL=professional-form-BAozcs0o.js.map

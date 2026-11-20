@@ -1,0 +1,2 @@
+import{t as e}from"../../vinext-stage-runtime~0virtual_vinext-response-stage~0virtual_vinext-rsc-entry~page~page~pag~ekzku2by-BVYNHUAR.js";var t={name:`plus`,size:24,node:[[`path`,{d:`M5 12h14`,key:`1ays0h`}],[`path`,{d:`M12 5v14`,key:`s699le`}]]};t.node;var n=e(t);export{n as t};
+//# sourceMappingURL=plus-CE_U6enB.js.map

@@ -1,0 +1,2 @@
+import{a as e}from"../../vinext-stage-runtime~0virtual_vinext-response-stage~0virtual_vinext-rsc-entry~cache-callabl~o4mewdgk-CpMeVdIn.js";var t=e(()=>{throw Error(`Unexpectedly client reference export 'PatientForm' is called on server`)},`4f47b2e424ad`,`PatientForm`);export{t};
+//# sourceMappingURL=patient-form-vsnp2JTl.js.map

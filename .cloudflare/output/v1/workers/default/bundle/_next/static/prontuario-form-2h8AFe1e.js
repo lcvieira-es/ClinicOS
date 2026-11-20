@@ -1,0 +1,2 @@
+import{a as e}from"../../vinext-stage-runtime~0virtual_vinext-response-stage~0virtual_vinext-rsc-entry~cache-callabl~o4mewdgk-CpMeVdIn.js";var t=e(()=>{throw Error(`Unexpectedly client reference export 'ProntuarioForm' is called on server`)},`548a31acc7b0`,`ProntuarioForm`);export{t};
+//# sourceMappingURL=prontuario-form-2h8AFe1e.js.map

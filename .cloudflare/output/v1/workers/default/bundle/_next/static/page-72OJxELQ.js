@@ -1,0 +1,2 @@
+import{P as e}from"../../vinext-stage-runtime~0virtual_vinext-response-stage~0virtual_vinext-request-stage-DrYePS94.js";import"../../vinext-stage-runtime~0virtual_vinext-response-stage-CsSQHvW5.js";import{t}from"./current-user-k91s3vwz.js";async function n(){let n=await t();n||e(`/login`),n.isPlatformAdmin&&e(`/admin`),n.activeMembership&&e(`/app/painel`),n.portalAccess.length>0&&e(`/portal`),e(`/login?erro=sem-acesso`)}export{n as default};
+//# sourceMappingURL=page-72OJxELQ.js.map
