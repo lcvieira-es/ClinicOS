@@ -118,7 +118,7 @@ export async function getPglite(): Promise<any> {
     rejectUnauthorized: false,
   };
 }
-}
+
 
 /**
  * Remove sslmode da URL para evitar que o pg-connection-string sobrescreva
