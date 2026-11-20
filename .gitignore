@@ -11,3 +11,8 @@ coverage/
 .DS_Store
 .idea/
 .vscode/
+.vinext/
+.cloudflare/
+
+.vercel
+.env*

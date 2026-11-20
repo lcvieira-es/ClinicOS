@@ -1,0 +1,32 @@
+# Cloudflare Workers / Pages configuration for ClinicOS
+# Docs: https://developers.cloudflare.com/workers/framework-guides/web-apps/nextjs/
+
+name = "clinicos"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
+
+# ---------------------------------------------------------------------------
+# Variáveis de ambiente (não sensíveis)
+# ---------------------------------------------------------------------------
+[vars]
+NODE_ENV = "production"
+DB_SSL = "true"
+DB_SSL_REJECT_UNAUTHORIZED = "false"
+DB_SET_ROLE = "true"
+
+# ---------------------------------------------------------------------------
+# Hyperdrive — proxy/cache para PostgreSQL (Supabase/Neon/etc.)
+# Crie o binding com: npx wrangler hyperdrive create clinicos-db --connection-string="postgresql://..."
+# Depois copie o ID gerado abaixo.
+# ---------------------------------------------------------------------------
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "REPLACE_WITH_HYPERDRIVE_ID"
+localConnectionString = "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable"
+
+# ---------------------------------------------------------------------------
+# Cron Triggers — verificação diária da cadeia de auditoria
+# ---------------------------------------------------------------------------
+[triggers]
+crons = ["0 3 * * *"]

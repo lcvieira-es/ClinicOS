@@ -19,7 +19,24 @@ const globalForDb = globalThis as unknown as {
 };
 
 export function isPostgres(): boolean {
+  // Hyperdrive (Cloudflare) também fornece PostgreSQL
+  const hyperdrive = (process.env as any).HYPERDRIVE;
+  if (hyperdrive && hyperdrive.connectionString) return true;
   return Boolean(process.env.DATABASE_URL || process.env.APP_DATABASE_URL);
+}
+
+/**
+ * Resolve a connection string a partir do Hyperdrive (Cloudflare) ou env vars.
+ */
+function resolveConnectionString(preferApp: boolean): string | undefined {
+  const hyperdrive = (process.env as any).HYPERDRIVE;
+  if (hyperdrive && hyperdrive.connectionString) {
+    return hyperdrive.connectionString;
+  }
+  if (preferApp) {
+    return process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL;
+  }
+  return process.env.DATABASE_URL ?? process.env.APP_DATABASE_URL;
 }
 
 /**
@@ -66,27 +83,40 @@ export async function getPglite(): Promise<any> {
  *   (útil em ambientes com certificado autoassinado, como alguns hosts).
  */
 function buildSsl(connectionString: string): { rejectUnauthorized: boolean } | undefined {
-  const forced = process.env.DB_SSL === 'true';
-  const fromUrl = /sslmode=require/i.test(connectionString);
-  if (!forced && !fromUrl) return undefined;
-  return {
-    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
-  };
+  // Em produção (Vercel), SSL é obrigatório para Supabase/PostgreSQL externo.
+  const forced =
+    process.env.DB_SSL === 'true' ||
+    process.env.NODE_ENV === 'production' ||
+    /sslmode=require/i.test(connectionString);
+  if (!forced) return undefined;
+  return { rejectUnauthorized: false };
+}
+
+/**
+ * Remove sslmode da URL para evitar que o pg-connection-string sobrescreva
+ * a configuração de SSL definida explicitamente (necessário para Supabase).
+ */
+function stripSslMode(connectionString: string): string {
+  return connectionString.replace(/[?&]sslmode=[^&]*/gi, (match) => {
+    // se for o único param, remove o ?; senão remove o param mantendo o ?
+    if (match.startsWith('?')) return '?';
+    return '';
+  }).replace(/\?$/, '');
 }
 
 function getAppPool(): Pool {
-  const connectionString =
-    process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error('APP_DATABASE_URL ou DATABASE_URL não configurada.');
+  const raw = resolveConnectionString(true);
+  if (!raw) {
+    throw new Error('APP_DATABASE_URL, DATABASE_URL ou HYPERDRIVE não configurada.');
   }
+  const connectionString = stripSslMode(raw);
   if (!globalForDb.__clinicosAppPool) {
     globalForDb.__clinicosAppPool = new Pool({
       connectionString,
       max: Number(process.env.DATABASE_POOL_MAX ?? 10),
       idleTimeoutMillis: 30_000,
       options: '-c timezone=America/Sao_Paulo',
-      ssl: buildSsl(connectionString),
+      ssl: buildSsl(raw),
     });
 
     globalForDb.__clinicosAppPool.on('error', (error) => {
@@ -97,18 +127,18 @@ function getAppPool(): Pool {
 }
 
 function getAdminPool(): Pool {
-  const connectionString =
-    process.env.DATABASE_URL ?? process.env.APP_DATABASE_URL;
-  if (!connectionString) {
-    throw new Error('DATABASE_URL ou APP_DATABASE_URL não configurada.');
+  const raw = resolveConnectionString(false);
+  if (!raw) {
+    throw new Error('DATABASE_URL, APP_DATABASE_URL ou HYPERDRIVE não configurada.');
   }
+  const connectionString = stripSslMode(raw);
   if (!globalForDb.__clinicosAdminPool) {
     globalForDb.__clinicosAdminPool = new Pool({
       connectionString,
       max: 2,
       idleTimeoutMillis: 30_000,
       options: '-c timezone=America/Sao_Paulo',
-      ssl: buildSsl(connectionString),
+      ssl: buildSsl(raw),
     });
 
     globalForDb.__clinicosAdminPool.on('error', (error) => {
