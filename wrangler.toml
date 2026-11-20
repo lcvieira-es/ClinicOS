@@ -22,7 +22,7 @@ DB_SET_ROLE = "true"
 # ---------------------------------------------------------------------------
 [[hyperdrive]]
 binding = "HYPERDRIVE"
-id = "REPLACE_WITH_HYPERDRIVE_ID"
+id = "ff0a5a7cffa845aea097cded72372e42"
 localConnectionString = "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable"
 
 # ---------------------------------------------------------------------------

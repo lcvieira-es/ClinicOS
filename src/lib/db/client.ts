@@ -28,11 +28,23 @@ export function isPostgres(): boolean {
 /**
  * Resolve a connection string a partir do Hyperdrive (Cloudflare) ou env vars.
  */
-function resolveConnectionString(preferApp: boolean): string | undefined {
-  const hyperdrive = (process.env as any).HYPERDRIVE;
-  if (hyperdrive && hyperdrive.connectionString) {
-    return hyperdrive.connectionString;
+function resolveHyperdriveConnectionString(): string | undefined {
+  // Cloudflare Workers: bindings são passados via env do handler.
+  // Com nodejs_compat, process.env.HYPERDRIVE pode conter o binding.
+  try {
+    const hd = (process.env as any)?.HYPERDRIVE ?? (globalThis as any)?.HYPERDRIVE;
+    if (hd && typeof hd.connectionString === 'string') {
+      return hd.connectionString;
+    }
+  } catch {
+    // ignore
   }
+  return undefined;
+}
+
+function resolveConnectionString(preferApp: boolean): string | undefined {
+  const hd = resolveHyperdriveConnectionString();
+  if (hd) return hd;
   if (preferApp) {
     return process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL;
   }
@@ -82,7 +94,9 @@ export async function getPglite(): Promise<any> {
  * - DB_SSL_REJECT_UNAUTHORIZED=false desativa a verificação do certificado
  *   (útil em ambientes com certificado autoassinado, como alguns hosts).
  */
-function buildSsl(connectionString: string): { rejectUnauthorized: boolean } | undefined {
+/** 
+ # Inicio
+ * * function buildSsl(connectionString: string): { rejectUnauthorized: boolean } | undefined {
   // Em produção (Vercel), SSL é obrigatório para Supabase/PostgreSQL externo.
   const forced =
     process.env.DB_SSL === 'true' ||
@@ -90,6 +104,20 @@ function buildSsl(connectionString: string): { rejectUnauthorized: boolean } | u
     /sslmode=require/i.test(connectionString);
   if (!forced) return undefined;
   return { rejectUnauthorized: false };
+  Fim codigo original*/
+ function buildSsl(rawConnectionString: string): PoolConfig['ssl'] {
+  const isLocal =
+    rawConnectionString.includes('localhost') ||
+    rawConnectionString.includes('127.0.0.1');
+
+  if (isLocal) {
+    return false;
+  }
+
+  return {
+    rejectUnauthorized: false,
+  };
+}
 }
 
 /**

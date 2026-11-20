@@ -30,7 +30,7 @@ export default defineConfig({
       // Crie com: npx wrangler hyperdrive create clinicos-db --connection-string="postgresql://..."
       // Depois substitua REPLACE_WITH_HYPERDRIVE_ID pelo ID gerado.
       HYPERDRIVE: bindings.hyperdrive({
-        id: "REPLACE_WITH_HYPERDRIVE_ID",
+        id: "ff0a5a7cffa845aea097cded72372e42",
         dev: {
           connectionString: "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable",
         },
