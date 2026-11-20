@@ -70,7 +70,7 @@ function buildSsl(connectionString: string): { rejectUnauthorized: boolean } | u
   const fromUrl = /sslmode=require/i.test(connectionString);
   if (!forced && !fromUrl) return undefined;
   return {
-    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'true',
   };
 }
 */
