@@ -59,16 +59,32 @@ export function AppointmentForm({
       setAvailError('');
       return;
     }
-    // Verificação instantânea com os slots já carregados (sem round-trip).
-    const start = new Date(`${date}T${time}:00-03:00`);
+    const start = new Date(date + 'T' + time + ':00-03:00');
     const end = new Date(start.getTime() + 30 * 60_000);
-    const conflict = (busySlots || []).some((bs) => {
+    const localConflict = (busySlots || []).some((bs) => {
       if (bs.professional_id !== profId) return false;
       const bsStart = new Date(String(bs.scheduled_start).replace(' ', 'T').replace('+00', 'Z'));
       const bsEnd = new Date(String(bs.scheduled_end).replace(' ', 'T').replace('+00', 'Z'));
       return bsStart < end && bsEnd > start;
     });
-    setAvailError(conflict ? 'Horário ocupado para este profissional' : '');
+    if (localConflict) {
+      setAvailError('Horário ocupado para este profissional');
+    } else {
+      setAvailError('');
+    }
+    const fd = new FormData();
+    fd.set('professionalId', profId);
+    fd.set('date', date);
+    fd.set('time', time);
+    fd.set('durationMin', '30');
+    void (async () => {
+      try {
+        const result = await checkSlotAvailabilityAction({}, fd);
+        setAvailError(result.error ?? '');
+      } catch {
+        // keep local result
+      }
+    })();
   };
 
   const [specialty, setSpecialty] = useState('');
