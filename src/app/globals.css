@@ -73,6 +73,21 @@
     outline-offset: 2px;
   }
 
+  .float {
+    animation: float 6s ease-in-out infinite;
+  }
+  .float-slow {
+    animation: float 8s ease-in-out infinite;
+  }
+  .fade-edges {
+    mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent);
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+  }
+
   input,
   select,
   textarea,
@@ -179,4 +194,40 @@
 
 .animate-fade {
   animation: clinicos-fade 0.25s ease-out both;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+  aside, header, nav, footer, .no-print, [aria-label="Imprimir página"] {
+    display: none !important;
+  }
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+  }
+  .lg\:pl-\[336px\], .lg\:pl-\[396px\] {
+    padding-left: 0 !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  /* Remove linhas/bordas para visual limpo de PDF */
+  table, th, td, .border, .border-t, .border-b, .border-line, [class*="border"] {
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .shadow-card, .shadow-pop, .shadow-lg, .shadow {
+    box-shadow: none !important;
+  }
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+  .fixed {
+    position: static !important;
+  }
 }

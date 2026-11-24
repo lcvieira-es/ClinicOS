@@ -27,11 +27,7 @@ import { formatCurrency, formatDate, formatDateTime, formatTime } from '@/lib/fo
 export const metadata = { title: 'Agenda' };
 
 function isoToday(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 }
 
 function shiftDate(iso: string, days: number): string {
@@ -161,31 +157,31 @@ export default async function AgendaPage({
           <form
             method="get"
             action="/app/agenda"
-            className="flex flex-nowrap items-center gap-2 overflow-x-auto"
+            className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:overflow-x-auto"
           >
             <input type="hidden" name="view" value={view} />
             <div className="flex items-center gap-1">
-              <Link
+              <a
                 href={buildHref({ data: shiftDate(date, view === 'semana' ? -7 : -1) })}
                 className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-white text-ink-600 transition hover:bg-sky-100"
               >
                 <ChevronLeft className="h-4 w-4" />
-              </Link>
-              <Link
+              </a>
+              <a
                 href={buildHref({ data: isoToday() })}
                 className="flex h-9 items-center justify-center rounded-xl border border-line bg-white px-3 text-xs font-semibold text-ink-700 transition hover:bg-sky-100"
               >
                 Hoje
-              </Link>
-              <Link
+              </a>
+              <a
                 href={buildHref({ data: shiftDate(date, view === 'semana' ? 7 : 1) })}
                 className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-white text-ink-600 transition hover:bg-sky-100"
               >
                 <ChevronRight className="h-4 w-4" />
-              </Link>
+              </a>
             </div>
             <div className="flex items-center gap-1 rounded-xl border border-line bg-sky-25 p-1">
-              <Link
+              <a
                 href={buildHref({ view: 'dia' })}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                   view === 'dia'
@@ -194,8 +190,8 @@ export default async function AgendaPage({
                 }`}
               >
                 Dia
-              </Link>
-              <Link
+              </a>
+              <a
                 href={buildHref({ view: 'semana' })}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                   view === 'semana'
@@ -204,13 +200,13 @@ export default async function AgendaPage({
                 }`}
               >
                 Semana
-              </Link>
+              </a>
             </div>
             <Select
               name="profissional"
               defaultValue={professionalId}
               aria-label="Profissional"
-              className="min-w-[100px] max-w-[180px]"
+              className="w-full sm:min-w-[100px] sm:max-w-[180px]"
             >
               <option value="">Todos os profissionais</option>
               {professionals.map((professional) => (
@@ -223,7 +219,7 @@ export default async function AgendaPage({
               name="unidade"
               defaultValue={unitId}
               aria-label="Unidade"
-              className="min-w-[110px] max-w-[180px]"
+              className="w-full sm:min-w-[110px] sm:max-w-[180px]"
             >
               <option value="">Todas as unidades</option>
               {units.map((unit) => (
@@ -490,7 +486,7 @@ function WeekView({
   const byDay = new Map<string, typeof appointments>();
   for (const day of weekDays) byDay.set(day, []);
   for (const appointment of appointments) {
-    const day = appointment.scheduled_start.slice(0, 10);
+    const day = new Date(String(appointment.scheduled_start).replace(' ', 'T')).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
     if (byDay.has(day)) byDay.get(day)!.push(appointment);
   }
 

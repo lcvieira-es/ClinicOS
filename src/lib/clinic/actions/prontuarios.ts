@@ -127,7 +127,8 @@ export async function createMedicalRecordAction(
     return { success: 'Prontuário criado como rascunho.', id };
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { error: errorMessage(error) };
+    console.error('[prontuario] tx error:', error);
+    return { error: errorMessage(error) + ' :: ' + (error instanceof Error ? error.message : String(error)) };
   }
 }
 

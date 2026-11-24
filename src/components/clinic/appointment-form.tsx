@@ -1,8 +1,8 @@
 'use client';
 
-import { useActionState, useState, useMemo } from 'react';
+import { useActionState, useState, useMemo, useEffect } from 'react';
 import { LoaderCircle, Save } from 'lucide-react';
-import { createAppointmentAction } from '@/lib/clinic/actions/agenda';
+import { createAppointmentAction, checkSlotAvailabilityAction } from '@/lib/clinic/actions/agenda';
 import type { ClinicFormState } from '@/lib/clinic/form-state';
 import type { ProfessionalSchedule } from '@/lib/clinic/disponibilidade';
 import { Button } from '@/components/ui/button';
@@ -52,6 +52,24 @@ export function AppointmentForm({
     action,
     {},
   );
+  const [availError, setAvailError] = useState('');
+  const [availPending, setAvailPending] = useState(false);
+  const runAvailabilityCheck = (profId: string, date: string, time: string) => {
+    if (!profId || !date || !time) {
+      setAvailError('');
+      return;
+    }
+    // Verificação instantânea com os slots já carregados (sem round-trip).
+    const start = new Date(`${date}T${time}:00-03:00`);
+    const end = new Date(start.getTime() + 30 * 60_000);
+    const conflict = (busySlots || []).some((bs) => {
+      if (bs.professional_id !== profId) return false;
+      const bsStart = new Date(bs.scheduled_start);
+      const bsEnd = new Date(bs.scheduled_end);
+      return bsStart < end && bsEnd > start;
+    });
+    setAvailError(conflict ? 'Horário ocupado para este profissional' : '');
+  };
 
   const [specialty, setSpecialty] = useState('');
   const [professionalId, setProfessionalId] = useState('');
@@ -74,9 +92,12 @@ export function AppointmentForm({
     [schedules, professionalId],
   );
 
-  // Available dates: next 30 days matching professional's schedule weekdays
-  const availableDates = useMemo(() => {
-    if (!professionalId || profSchedules.length === 0) return [];
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
+  useEffect(() => {
+    if (!professionalId || profSchedules.length === 0) {
+      setAvailableDates([]);
+      return;
+    }
     const dates: string[] = [];
     const today = new Date();
     for (let i = 0; i < 30; i++) {
@@ -90,7 +111,7 @@ export function AppointmentForm({
         dates.push(`${y}-${m}-${dd}`);
       }
     }
-    return dates;
+    setAvailableDates(dates);
   }, [professionalId, profSchedules]);
 
   // Available times for selected date
@@ -173,6 +194,7 @@ export function AppointmentForm({
                 setProfessionalId('');
                 setSelectedDate('');
                 setSelectedTime('');
+                setAvailError('');
               }}
             >
               <option value="">Todas</option>
@@ -194,6 +216,7 @@ export function AppointmentForm({
                 setProfessionalId(e.target.value);
                 setSelectedDate('');
                 setSelectedTime('');
+                setAvailError('');
               }}
             >
               <option value="" disabled>
@@ -230,6 +253,7 @@ export function AppointmentForm({
                 onChange={(e) => {
                   setSelectedDate(e.target.value);
                   setSelectedTime('');
+                  setAvailError('');
                 }}
               >
                 <option value="" disabled>
@@ -242,25 +266,45 @@ export function AppointmentForm({
                 ))}
               </Select>
             ) : (
-              <Input id="date" name="date" type="date" required defaultValue="" />
+              <Input id="date" name="date" type="date" required defaultValue="" onChange={(e) => { setSelectedDate(e.target.value); setSelectedTime(''); setAvailError(''); }} />
             )}
           </Field>
 
           <Field label="Horário *" htmlFor="time">
-            {availableTimes.length > 0 ? (
-              <Select id="time" name="time" required value={selectedTime} onChange={(e) => setSelectedTime(e.target.value)}>
-                <option value="" disabled>
-                  Selecione…
-                </option>
-                {availableTimes.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+            <div className="relative">
+              {availableTimes.length > 0 ? (
+                <Select
+                  id="time"
+                  name="time"
+                  required
+                  value={selectedTime}
+                  onChange={(e) => {
+                    const t = e.target.value;
+                    setSelectedTime(t);
+                    runAvailabilityCheck(professionalId, selectedDate, t);
+                  }}
+                >
+                  <option value="" disabled>
+                    Selecione…
                   </option>
-                ))}
-              </Select>
-            ) : (
-              <Input id="time" name="time" type="time" required defaultValue="09:00" />
-            )}
+                  {availableTimes.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <Input id="time" name="time" type="time" required defaultValue="09:00" onChange={(e) => { const t = e.target.value; setSelectedTime(t); runAvailabilityCheck(professionalId, selectedDate, t); }} />
+              )}
+              {availError ? (
+                <div
+                  className="absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 shadow-lg"
+                  role="alert"
+                >
+                  {availError}
+                </div>
+              ) : null}
+            </div>
           </Field>
 
           <Field label="Tipo" htmlFor="type">
@@ -279,7 +323,7 @@ export function AppointmentForm({
       </Card>
 
       <div className="flex items-center justify-end gap-3">
-        <Button type="submit" disabled={pending} size="md">
+        <Button type="submit" disabled={pending || !!availError} size="md">
           {pending ? (
             <>
               <LoaderCircle className="h-4 w-4 animate-spin" strokeWidth={2} />

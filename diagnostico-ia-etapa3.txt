@@ -1,0 +1,266 @@
+=== PACKAGE.JSON ===
+{
+  "name": "clinicos",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "db:check": "node tools/db-check.mjs",
+    "db:setup": "node tools/db-setup.mjs",
+    "db:setup-pg": "node tools/apply-migrations-pg.mjs",
+    "db:seed-prod": "node tools/seed-production.mjs",
+    "db:test-connection": "node tools/test-db-connection.mjs",
+    "rls:check": "node tools/rls-check.mjs"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.3.16",
+    "@node-rs/argon2": "^2.2.2",
+    "@vercel/speed-insights": "^2.1.0",
+    "clsx": "^2.1.1",
+    "jose": "^6.2.15",
+    "lucide-react": "^1.70.0",
+    "next": "16.4.5",
+    "pg": "^8.23.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.7.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.5",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.11.10",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^5.9.0"
+  }
+}
+
+=== DEPENDENCIAS RELACIONADAS A IA E WHATSAPP ===
+
+=== MIGRATIONS RELACIONADAS AO AGENTE ===
+
+--- 20261118000002_002_platform_tenant.sql ---
+279: create table patients (
+311:   constraint patients_cpf_fmt check (cpf is null or cpf ~ '^[0-9]{11}$'),
+312:   constraint patients_state_fmt check (state is null or state ~ '^[A-Z]{2}$')
+314: create unique index patients_clinic_cpf_uidx
+315:   on patients (clinic_id, cpf) where cpf is not null;
+319:     create index if not exists patients_name_trgm_idx on patients using gin (full_name gin_trgm_ops);
+321:     create index if not exists patients_name_idx on patients (full_name);
+328:   patient_id  uuid not null references patients(id) on delete cascade,
+339:   patient_id        uuid not null references patients(id) on delete cascade,
+
+--- 20261118000003_003_clinical.sql ---
+5: create table appointments (
+9:   patient_id            uuid not null references patients(id) on delete restrict,
+24:   rescheduled_from_id   uuid references appointments(id) on delete set null,
+28:   constraint appointments_range_check check (scheduled_end > scheduled_start)
+34:   appointment_id uuid not null references appointments(id) on delete cascade,
+46:   patient_id      uuid not null references patients(id) on delete cascade,
+62:   patient_id            uuid not null references patients(id) on delete restrict,
+64:   appointment_id        uuid references appointments(id) on delete set null,
+92:   patient_id        uuid not null references patients(id) on delete restrict,
+110:   patient_id  uuid not null references patients(id) on delete cascade,
+147:   patient_id        uuid not null references patients(id) on delete restrict,
+149:   appointment_id    uuid references appointments(id) on delete set null,
+209:   patient_id          uuid not null references patients(id) on delete restrict,
+211:   appointment_id      uuid references appointments(id) on delete set null,
+
+--- 20261118000004_004_financial_ops.sql ---
+21:   patient_id        uuid not null references patients(id) on delete restrict,
+23:   appointment_id    uuid references appointments(id) on delete set null,
+52:   patient_id         uuid references patients(id) on delete set null,
+53:   appointment_id     uuid references appointments(id) on delete set null,
+103:   patient_id        uuid not null references patients(id) on delete restrict,
+131: create table whatsapp_messages (
+134:   patient_id     uuid references patients(id) on delete set null,
+135:   appointment_id uuid references appointments(id) on delete set null,
+147: create table ai_interactions (
+151:   patient_id       uuid references patients(id) on delete set null,
+
+--- 20261118000005_005_integrity_indexes.sql ---
+9: alter table patients              add constraint patients_id_clinic_uk unique (id, clinic_id);
+10: alter table appointments          add constraint appointments_id_clinic_uk unique (id, clinic_id);
+38: alter table appointments
+39:   add constraint appointments_unit_fk
+41: alter table appointments
+42:   add constraint appointments_patient_fk
+43:   foreign key (patient_id, clinic_id) references patients (id, clinic_id) on delete restrict;
+44: alter table appointments
+45:   add constraint appointments_professional_fk
+50:   foreign key (appointment_id, clinic_id) references appointments (id, clinic_id) on delete cascade;
+54:   foreign key (patient_id, clinic_id) references patients (id, clinic_id) on delete restrict;
+65:   foreign key (patient_id, clinic_id) references patients (id, clinic_id) on delete restrict;
+76:   foreign key (patient_id, clinic_id) references patients (id, clinic_id) on delete restrict;
+91:   foreign key (patient_id, clinic_id) references patients (id, clinic_id) on delete restrict;
+95:   foreign key (patient_id, clinic_id) references patients (id, clinic_id) on delete restrict;
+103:   foreign key (patient_id, clinic_id) references patients (id, clinic_id) on delete restrict;
+117:     'clinic_insurance_contracts', 'patients', 'patient_portal_access', 'patient_consents',
+118:     'appointments', 'appointment_status_history', 'waiting_list',
+123:     'notifications', 'whatsapp_messages', 'ai_interactions', 'subscriptions',
+131: create index if not exists appointments_start_idx on appointments (clinic_id, scheduled_start);
+132: create index if not exists appointments_professional_idx on appointments (professional_id, scheduled_start);
+133: create index if not exists appointments_patient_idx on appointments (patient_id, scheduled_start);
+134: create index if not exists appointments_status_idx on appointments (clinic_id, status);
+139: create index if not exists patients_phone_idx on patients (clinic_id, phone);
+141: create index if not exists whatsapp_status_idx on whatsapp_messages (clinic_id, status);
+147:     alter table appointments
+148:       add constraint appointments_professional_no_overlap
+175:     'professionals', 'patients', 'appointments', 'medical_records', 'clinical_notes',
+
+--- 20261118000006_006_rls_helpers.sql ---
+90: create or replace function app_has_permission(p_clinic uuid, p_permission text)
+172: create or replace view v_patients_directory
+181:     when app_has_permission(p.clinic_id, 'pacientes:view_sensitive') then p.cpf
+193: from patients p
+
+--- 20261118000007_007_rls_operational.sql ---
+24:       ('patients',                  array['clinic_admin','doctor','receptionist','finance'], array['clinic_admin','receptionist','doctor'],  array['clinic_admin']),
+26:       ('appointments',              array['clinic_admin','doctor','receptionist','finance'], array['clinic_admin','receptionist','doctor'],  array['clinic_admin']),
+38:       ('whatsapp_messages',         array['clinic_admin','doctor','receptionist'],            array['clinic_admin','doctor','receptionist'],  array['clinic_admin'])
+41:     execute format('alter table %I enable row level security', r.tbl);
+48:       'create policy tenant_select on %I for select using (app_has_any_role(clinic_id, %L::text[]))',
+52:       'create policy tenant_insert on %I for insert with check (app_has_any_role(clinic_id, %L::text[]))',
+56:       'create policy tenant_update on %I for update using (app_has_any_role(clinic_id, %L::text[])) with check (app_has_any_role(clinic_id, %L::text[]))',
+60:       'create policy tenant_delete on %I for delete using (app_has_any_role(clinic_id, %L::text[]))',
+67: alter table medical_records enable row level security;
+68: create policy medical_records_select on medical_records
+70: create policy medical_records_insert on medical_records
+75: create policy medical_records_update on medical_records
+83: create policy medical_records_delete on medical_records
+87: alter table clinical_notes enable row level security;
+88: create policy clinical_notes_select on clinical_notes
+90: create policy clinical_notes_insert on clinical_notes
+95: create policy clinical_notes_update on clinical_notes
+103: create policy clinical_notes_delete on clinical_notes
+107: alter table prescriptions enable row level security;
+108: create policy prescriptions_select on prescriptions
+110: create policy prescriptions_insert on prescriptions
+115: create policy prescriptions_update on prescriptions
+123: create policy prescriptions_delete on prescriptions
+126: alter table prescription_items enable row level security;
+127: create policy prescription_items_select on prescription_items
+129: create policy prescription_items_write on prescription_items
+
+--- 20261118000008_008_rls_platform_portal.sql ---
+6: alter table clinics enable row level security;
+7: create policy clinics_select_member on clinics
+9: create policy clinics_select_portal on clinics
+14: create policy clinics_update_admin on clinics
+17: create policy clinics_platform_write on clinics
+21: alter table users enable row level security;
+22: create policy users_select_self on users
+24: create policy users_select_admin on users
+26: create policy users_update_self on users
+29: create policy users_platform_all on users
+32: alter table platform_admins enable row level security;
+33: create policy platform_admins_platform_all on platform_admins
+37: alter table clinic_memberships enable row level security;
+38: create policy memberships_select on clinic_memberships
+43: create policy memberships_insert on clinic_memberships
+45: create policy memberships_update on clinic_memberships
+48: create policy memberships_delete on clinic_memberships
+51: alter table user_invites enable row level security;
+52: create policy user_invites_admin_all on user_invites
+56: alter table patient_portal_access enable row level security;
+57: create policy portal_access_select on patient_portal_access
+62: create policy portal_access_admin_write on patient_portal_access
+67: alter table notifications enable row level security;
+68: create policy notifications_select_own on notifications
+70: create policy notifications_update_own on notifications
+73: create policy notifications_insert_own on notifications
+75: create policy notifications_delete_own on notifications
+79: alter table ai_interactions enable row level security;
+80: create policy ai_select_own on ai_interactions
+85: create policy ai_insert_own on ai_interactions
+92: alter table subscriptions enable row level security;
+93: create policy subscriptions_select on subscriptions
+98: create policy subscriptions_platform_write on subscriptions
+101: alter table subscription_invoices enable row level security;
+102: create policy invoices_select on subscription_invoices
+107: create policy invoices_platform_write on subscription_invoices
+110: alter table clinic_modules enable row level security;
+111: create policy clinic_modules_select on clinic_modules
+113: create policy clinic_modules_platform_write on clinic_modules
+116: alter table clinic_features enable row level security;
+117: create policy clinic_features_select on clinic_features
+119: create policy clinic_features_platform_write on clinic_features
+122: alter table gateway_events enable row level security;
+123: create policy gateway_events_platform_all on gateway_events
+127: alter table financial_categories enable row level security;
+128: create policy financial_categories_select on financial_categories
+133: create policy financial_categories_insert on financial_categories
+138: create policy financial_categories_update on financial_categories
+146: create policy financial_categories_delete on financial_categories
+152: alter table medications enable row level security;
+153: create policy medications_select on medications
+158: create policy medications_write on medications
+167: alter table exam_catalog enable row level security;
+168: create policy exam_catalog_select on exam_catalog
+173: create policy exam_catalog_write on exam_catalog
+182: alter table insurance_providers enable row level security;
+183: create policy insurance_providers_select on insurance_providers
+185: create policy insurance_providers_platform_write on insurance_providers
+189: alter table plans enable row level security;
+190: create policy plans_select on plans for select using (app_current_user_id() is not null);
+191: create policy plans_platform_write on plans for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+193: alter table modules enable row level security;
+194: create policy modules_select on modules for select using (app_current_user_id() is not null);
+195: create policy modules_platform_write on modules for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+197: alter table module_features enable row level security;
+198: create policy module_features_select on module_features for select using (app_current_user_id() is not null);
+199: create policy module_features_platform_write on module_features for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+201: alter table plan_modules enable row level security;
+202: create policy plan_modules_select on plan_modules for select using (app_current_user_id() is not null);
+203: create policy plan_modules_platform_write on plan_modules for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+205: alter table permissions enable row level security;
+206: create policy permissions_select on permissions for select using (app_current_user_id() is not null);
+207: create policy permissions_platform_write on permissions for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+209: alter table role_permissions enable row level security;
+210: create policy role_permissions_select on role_permissions for select using (app_current_user_id() is not null);
+211: create policy role_permissions_platform_write on role_permissions for all using (app_is_platform_admin()) with check (app_is_platform_admin());
+213: alter table platform_settings enable row level security;
+214: create policy platform_settings_platform_all on platform_settings
+218: alter table audit_logs enable row level security;
+219: create policy audit_logs_select on audit_logs
+225: alter table record_access_logs enable row level security;
+226: create policy record_access_select on record_access_logs
+228: create policy record_access_insert on record_access_logs
+235: create policy patients_portal_select on patients
+238: create policy appointments_portal_select on appointments
+241: create policy prescriptions_portal_select on prescriptions
+244: create policy prescription_items_portal_select on prescription_items
+251: create policy exam_orders_portal_select on exam_orders
+254: create policy exam_order_items_portal_select on exam_order_items
+261: create policy exam_results_portal_select on exam_results
+271: create policy documents_portal_select on documents
+274: create policy patient_consents_portal_select on patient_consents
+277: create policy professionals_portal_select on professionals
+285: create policy clinic_units_portal_select on clinic_units
+
+--- 20261118000009_009_audit.sql ---
+142:     'patients', 'patient_consents', 'appointments', 'medical_records',
+
+--- 20261118000012_012_permissions.sql ---
+61:     ('portal', 'appointments', 'Visualizar consultas no portal'),
+164:   'portal:view', 'portal:appointments', 'portal:results', 'portal:documents',
+
+--- 20261118000013_013_platform_provisioning.sql ---
+15: create policy clinic_units_platform_write on clinic_units
+18: create policy memberships_platform_write on clinic_memberships
+21: create policy membership_units_platform_write on membership_units
+24: create policy user_invites_platform_write on user_invites
+
+--- 20261118000014_014_clinic_operations.sql ---
+49: create or replace view v_patients_directory
+58:     when app_has_permission(p.clinic_id, 'pacientes:view_sensitive') then p.cpf
+73: from patients p
+
+=== ARQUIVOS DE API E WEBHOOK ===

@@ -8,6 +8,7 @@ import {
   ChevronDown,
   LogOut,
   Menu,
+  Printer,
   Search,
   ShieldCheck,
   X,
@@ -177,7 +178,7 @@ export function ClinicShell({
             className="absolute inset-0 bg-navy-950/50 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="relative z-10 h-full w-[357px] shadow-pop">{sidebar}</aside>
+          <aside className="relative z-10 h-full w-[min(357px,90vw)] shadow-pop">{sidebar}</aside>
         </div>
       ) : null}
 
@@ -238,6 +239,16 @@ export function ClinicShell({
                 </span>
               ) : null}
             </Link>
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-line text-ink-500 transition hover:border-navy-600/30 hover:bg-sky-50 hover:text-navy-900"
+              aria-label="Imprimir página"
+              title="Imprimir"
+            >
+              <Printer className="h-4 w-4" strokeWidth={1.9} />
+            </button>
 
             <div className="hidden items-center gap-2.5 border-l border-line pl-3 sm:flex">
               <Avatar name={user.name} size="sm" />

@@ -1,0 +1,1235 @@
+
+========================================
+ARQUIVO: src/lib/clinic/ia.ts
+========================================
+import 'server-only';
+
+import { withTenant } from '@/lib/db';
+
+export interface AiInteractionItem {
+  id: string;
+  feature: string;
+  prompt: string;
+  response: string | null;
+  status: string;
+  created_at: string;
+}
+
+export async function listAiInteractions(
+  userId: string,
+  clinicId: string,
+): Promise<AiInteractionItem[]> {
+  return withTenant({ userId, clinicId }, async (tx) => {
+    return tx.query<AiInteractionItem>(
+      `select id, feature::text as feature, prompt, response, status::text as status, created_at::text as created_at
+         from ai_interactions
+        where user_id = $1
+        order by created_at desc
+        limit 50`,
+      [userId],
+    );
+  });
+}
+
+========================================
+ARQUIVO: src/lib/clinic/actions/ia.ts
+========================================
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { requireModulePermission } from '@/lib/clinic/module-guard';
+import { withTenant } from '@/lib/db';
+import type { ClinicFormState } from '@/lib/clinic/form-state';
+import { errorMessage, isRedirectError } from '@/lib/clinic/validation';
+
+const BLOCKED_KEYWORDS = [
+  'diagnóstico',
+  'diagnostico',
+  'prescrever',
+  'prescrição',
+  'prescricao',
+  'medicamento',
+  'dose',
+  'posologia',
+  'tratamento para',
+  'qual doença',
+  'qual doenca',
+];
+
+export async function askAiAction(
+  _previous: ClinicFormState & { response?: string; status?: string },
+  formData: FormData,
+): Promise<ClinicFormState & { response?: string; status?: string }> {
+  let userId: string;
+  let clinicId: string;
+  try {
+    const access = await requireModulePermission('ia', 'ia:use');
+    userId = access.user.id;
+    clinicId = access.user.activeClinicId;
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { error: errorMessage(error) };
+  }
+
+  const prompt = String(formData.get('prompt') ?? '').trim();
+  if (prompt.length < 3) {
+    return { error: 'Descreva sua solicitação com mais detalhes.' };
+  }
+
+  const lower = prompt.toLowerCase();
+  const blocked = BLOCKED_KEYWORDS.some((keyword) => lower.includes(keyword));
+
+  let status = 'concluida';
+  let response: string;
+
+  if (blocked) {
+    status = 'bloqueada';
+    response =
+      'Não posso fornecer diagnósticos, prescrições ou orientações de tratamento. ' +
+      'A decisão clínica é exclusiva do profissional de saúde. Posso ajudar com ' +
+      'organização de documentos, resumos para revisão humana ou busca de informações.';
+  } else {
+    response =
+      'Apoio à documentação: organize a anamnese, liste os achados e registre a conduta ' +
+      'para revisão do profissional. Toda informação clínica deve ser validada por um ' +
+      'médico antes de ser finalizada.';
+  }
+
+  try {
+    await withTenant({ userId, clinicId }, async (tx) => {
+      await tx.query(
+        `insert into ai_interactions (clinic_id, user_id, feature, prompt, response, status)
+         values ($1, $2::uuid, 'apoio_documentacao', $3, $4, $5::ai_status)`,
+        [clinicId, userId, prompt, response, status],
+      );
+    });
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { error: errorMessage(error) };
+  }
+
+  revalidatePath('/app/ia');
+  return { success: 'Resposta gerada.', response, status };
+}
+
+========================================
+ARQUIVO: src/app/(clinic)/app/ia/page.tsx
+========================================
+import { requireModule } from '@/lib/clinic/module-guard';
+import { AccessRestricted } from '@/components/feedback/access-restricted';
+import IaPageClient from './ia-client';
+
+export const metadata = { title: 'Assistente de IA' };
+
+export default async function IaPage() {
+  const access = await requireModule('ia');
+  if (!access.allowed) {
+    return <AccessRestricted homeHref="/app/painel" homeLabel="Voltar ao painel" />;
+  }
+  return <IaPageClient />;
+}
+
+========================================
+ARQUIVO: src/app/(clinic)/app/ia/ia-client.tsx
+========================================
+'use client';
+
+import { useActionState } from 'react';
+import { LoaderCircle, Sparkles, Send } from 'lucide-react';
+import { askAiAction } from '@/lib/clinic/actions/ia';
+import { Button } from '@/components/ui/button';
+import { Card, CardBody, CardHeader } from '@/components/ui/card';
+import { Field, Input } from '@/components/ui/input';
+
+export default function IaPageClient() {
+  const [state, formAction, pending] = useActionState(askAiAction, {});
+
+  return (
+    <div className="animate-fade space-y-5">
+      <div>
+        <h1 className="text-xl font-bold tracking-tight text-navy-900 sm:text-2xl">
+          Assistente de IA
+        </h1>
+        <p className="mt-1 text-xs text-ink-500">
+          Apoio à documentação e organização clínica, com revisão humana obrigatória.
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader
+          title="Nova solicitação"
+          description="A IA não diagnostica, não prescreve e não finaliza documentos."
+        />
+        <CardBody>
+          <form action={formAction} className="space-y-4">
+            {state.error ? (
+              <div className="rounded-xl border border-red-200 bg-danger-soft/60 px-4 py-3 text-xs font-medium text-red-700" role="alert">
+                {state.error}
+              </div>
+            ) : null}
+            <Field label="Sua solicitação" htmlFor="prompt">
+              <Input
+                id="prompt"
+                name="prompt"
+                placeholder="Ex.: resuma a anamnese para revisão…"
+                required
+              />
+            </Field>
+            <div className="flex items-center justify-end">
+              <Button type="submit" disabled={pending} size="md">
+                {pending ? (
+                  <>
+                    <LoaderCircle className="h-4 w-4 animate-spin" strokeWidth={2} />
+                    Processando…
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" strokeWidth={2} />
+                    Enviar
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </CardBody>
+      </Card>
+
+      {state.response ? (
+        <Card>
+          <CardHeader
+            title="Resposta"
+            description={`Status: ${state.status ?? 'concluida'}`}
+          />
+          <CardBody>
+            <div className="flex items-start gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-navy-800">
+                <Sparkles className="h-4 w-4" strokeWidth={1.9} />
+              </span>
+              <p className="text-xs leading-relaxed text-ink-700">{state.response}</p>
+            </div>
+            <p className="mt-3 text-[10px] leading-relaxed text-ink-400">
+              Toda informação clínica deve ser validada por um profissional de
+              saúde antes de ser finalizada. A IA não assina nem finaliza
+              documentos.
+            </p>
+          </CardBody>
+        </Card>
+      ) : null}
+    </div>
+  );
+}
+
+========================================
+ARQUIVO: src/lib/clinic/whatsapp.ts
+========================================
+import 'server-only';
+
+import { withTenant } from '@/lib/db';
+
+export interface WhatsappMessageItem {
+  id: string;
+  patient_id: string | null;
+  patient_name: string | null;
+  direction: string;
+  template: string | null;
+  content: string;
+  status: string;
+  sent_at: string | null;
+  created_at: string;
+}
+
+export async function listWhatsappMessages(
+  userId: string,
+  clinicId: string,
+): Promise<WhatsappMessageItem[]> {
+  return withTenant({ userId, clinicId }, async (tx) => {
+    return tx.query<WhatsappMessageItem>(
+      `select wm.id,
+              wm.patient_id,
+              p.full_name as patient_name,
+              wm.direction::text as direction,
+              wm.template,
+              wm.content,
+              wm.status::text as status,
+              wm.sent_at::text as sent_at,
+              wm.created_at::text as created_at
+         from whatsapp_messages wm
+         left join patients p on p.id = wm.patient_id
+        order by wm.created_at desc
+        limit 100`,
+    );
+  });
+}
+
+export async function listWhatsappPatients(
+  userId: string,
+  clinicId: string,
+): Promise<Array<{ id: string; name: string; phone: string | null }>> {
+  return withTenant({ userId, clinicId }, async (tx) => {
+    return tx.query<{ id: string; name: string; phone: string | null }>(
+      `select id, full_name as name, phone from patients where status <> 'arquivado' order by full_name`,
+    );
+  });
+}
+
+========================================
+ARQUIVO: src/lib/clinic/actions/whatsapp.ts
+========================================
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { requireModulePermission } from '@/lib/clinic/module-guard';
+import { withTenant } from '@/lib/db';
+import type { ClinicFormState } from '@/lib/clinic/form-state';
+import {
+  ActionError,
+  errorMessage,
+  isRedirectError,
+  isUuid,
+} from '@/lib/clinic/validation';
+
+const UUID_OPT = (value: string) =>
+  value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+    ? value
+    : null;
+
+export async function sendWhatsappAction(
+  _previous: ClinicFormState & { waLink?: string },
+  formData: FormData,
+): Promise<ClinicFormState & { waLink?: string }> {
+  let userId: string;
+  let clinicId: string;
+  try {
+    const access = await requireModulePermission('whatsapp', 'whatsapp:send');
+    userId = access.user.id;
+    clinicId = access.user.activeClinicId;
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { error: errorMessage(error) };
+  }
+
+  const patientId = String(formData.get('patientId') ?? '').trim();
+  const phone = String(formData.get('phone') ?? '').trim();
+  const content = String(formData.get('content') ?? '').trim();
+  const template = String(formData.get('template') ?? '').trim();
+
+  if (!content) {
+    return { error: 'Informe o conteúdo da mensagem.' };
+  }
+
+  const resolvedPhone = phone || null;
+
+  try {
+    await withTenant({ userId, clinicId }, async (tx) => {
+      await tx.query(
+        `insert into whatsapp_messages
+           (clinic_id, patient_id, direction, template, content, status, created_by)
+         values ($1, $2::uuid, 'enviada', $3, $4, 'pendente', $5::uuid)`,
+        [clinicId, UUID_OPT(patientId), template || null, content, userId],
+      );
+    });
+
+    revalidatePath('/app/whatsapp');
+
+    const digits = (resolvedPhone ?? '').replace(/\D/g, '');
+    const waLink = digits
+      ? `https://wa.me/55${digits}?text=${encodeURIComponent(content)}`
+      : undefined;
+
+    return {
+      success: 'Mensagem registrada. Abra o link para enviar pelo WhatsApp.',
+      waLink,
+    };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { error: errorMessage(error) };
+  }
+}
+
+========================================
+ARQUIVO: src/app/(clinic)/app/whatsapp/page.tsx
+========================================
+import { requireModule } from '@/lib/clinic/module-guard';
+import { AccessRestricted } from '@/components/feedback/access-restricted';
+import { listWhatsappMessages, listWhatsappPatients } from '@/lib/clinic/whatsapp';
+import WhatsappPageClient from './whatsapp-client';
+
+export const metadata = { title: 'WhatsApp' };
+
+export default async function WhatsappPage() {
+  const access = await requireModule('whatsapp');
+  if (!access.allowed) {
+    return <AccessRestricted homeHref="/app/painel" homeLabel="Voltar ao painel" />;
+  }
+
+  const user = access.user;
+  const [messages, patients] = await Promise.all([
+    listWhatsappMessages(user.id, user.activeClinicId),
+    listWhatsappPatients(user.id, user.activeClinicId),
+  ]);
+
+  return <WhatsappPageClient messages={messages} patients={patients} />;
+}
+
+========================================
+ARQUIVO: src/app/(clinic)/app/whatsapp/whatsapp-client.tsx
+========================================
+'use client';
+
+import { useActionState } from 'react';
+import { LoaderCircle, Send, MessageCircle } from 'lucide-react';
+import { sendWhatsappAction } from '@/lib/clinic/actions/whatsapp';
+import { listWhatsappMessages, listWhatsappPatients } from '@/lib/clinic/whatsapp';
+import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardBody, CardHeader } from '@/components/ui/card';
+import { Field, Input, Select } from '@/components/ui/input';
+import { Badge, StatusBadge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { formatDateTime } from '@/lib/format';
+
+interface Message {
+  id: string;
+  patient_id: string | null;
+  patient_name: string | null;
+  direction: string;
+  template: string | null;
+  content: string;
+  status: string;
+  sent_at: string | null;
+  created_at: string;
+}
+
+interface Patient {
+  id: string;
+  name: string;
+  phone: string | null;
+}
+
+export default function WhatsappPageClient({
+  messages,
+  patients,
+}: {
+  messages: Message[];
+  patients: Patient[];
+}) {
+  const [state, formAction, pending] = useActionState(sendWhatsappAction, {});
+
+  return (
+    <div className="animate-fade space-y-5">
+      <div>
+        <h1 className="text-xl font-bold tracking-tight text-navy-900 sm:text-2xl">
+          WhatsApp
+        </h1>
+        <p className="mt-1 text-xs text-ink-500">
+          Lembretes e mensagens manuais vinculadas à agenda.
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader title="Nova mensagem" description="Registra e gera link para envio pelo WhatsApp." />
+        <CardBody>
+          <form action={formAction} className="space-y-4">
+            {state.error ? (
+              <div className="rounded-xl border border-red-200 bg-danger-soft/60 px-4 py-3 text-xs font-medium text-red-700" role="alert">
+                {state.error}
+              </div>
+            ) : null}
+            {state.success ? (
+              <div className="rounded-xl border border-emerald-200 bg-success-soft/60 px-4 py-3 text-xs font-medium text-emerald-700" role="status">
+                {state.success}
+              </div>
+            ) : null}
+            {state.waLink ? (
+              <a
+                href={state.waLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Abrir no WhatsApp
+              </a>
+            ) : null}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Paciente" htmlFor="patientId">
+                <Select id="patientId" name="patientId" defaultValue="">
+                  <option value="">—</option>
+                  {patients.map((patient) => (
+                    <option key={patient.id} value={patient.id}>
+                      {patient.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Telefone (com DDD)" htmlFor="phone">
+                <Input id="phone" name="phone" inputMode="tel" placeholder="11999990000" />
+              </Field>
+              <Field label="Template" htmlFor="template">
+                <Input id="template" name="template" placeholder="lembrete_consulta" />
+              </Field>
+              <Field label="Conteúdo *" htmlFor="content" className="sm:col-span-2">
+                <Input id="content" name="content" required placeholder="Olá! Lembrete da sua consulta…" />
+              </Field>
+            </div>
+            <div className="flex items-center justify-end">
+              <Button type="submit" disabled={pending} size="md">
+                {pending ? (
+                  <>
+                    <LoaderCircle className="h-4 w-4 animate-spin" strokeWidth={2} />
+                    Registrando…
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" strokeWidth={2} />
+                    Registrar mensagem
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader title="Histórico" description={`${messages.length} mensagem(ns)`} />
+        <CardBody className="p-0">
+          {messages.length === 0 ? (
+            <EmptyState
+              icon={MessageCircle}
+              title="Nenhuma mensagem registrada"
+              description="Registre a primeira mensagem."
+              className="py-8"
+            />
+          ) : (
+            <div className="divide-y divide-line">
+              {messages.map((message) => (
+                <div key={message.id} className="px-5 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-ink-900">
+                      {message.patient_name ?? 'Sem paciente'}
+                    </p>
+                    <StatusBadge status={message.status} />
+                  </div>
+                  <p className="mt-1 text-xs text-ink-700">{message.content}</p>
+                  <p className="mt-1 text-[10px] text-ink-400">
+                    {formatDateTime(message.created_at)}
+                    {message.template ? ` · template ${message.template}` : ''}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardBody>
+      </Card>
+    </div>
+  );
+}
+
+========================================
+ARQUIVO: src/lib/db/client.ts
+========================================
+import 'server-only';
+
+import { mkdirSync } from 'node:fs';
+import path from 'node:path';
+import { Pool, type PoolClient } from 'pg';
+
+export type DbRow = Record<string, unknown>;
+export interface Queryable {
+  query<T = DbRow>(sql: string, params?: unknown[]): Promise<T[]>;
+}
+
+type SessionQuery = (sql: string, params?: unknown[]) => Promise<DbRow[]>;
+
+const globalForDb = globalThis as unknown as {
+  __clinicosPglite?: unknown;
+  __clinicosAppPool?: Pool;
+  __clinicosAdminPool?: Pool;
+  __clinicosPgliteModule?: Promise<{ PGlite: new (dataDir: string) => unknown }>;
+};
+
+export function isPostgres(): boolean {
+  // Hyperdrive (Cloudflare) também fornece PostgreSQL
+  const hyperdrive = (process.env as any)?.HYPERDRIVE ?? (globalThis as any)?.HYPERDRIVE;
+  if (hyperdrive && typeof hyperdrive.connectionString === 'string') return true;
+  return Boolean(process.env.DATABASE_URL || process.env.APP_DATABASE_URL);
+}
+
+/**
+ * Resolve a connection string a partir do Hyperdrive (Cloudflare) ou env vars.
+ */
+function resolveHyperdriveConnectionString(): string | undefined {
+  try {
+    const hd = (process.env as any)?.HYPERDRIVE ?? (globalThis as any)?.HYPERDRIVE;
+    if (hd && typeof hd.connectionString === 'string') {
+      return hd.connectionString;
+    }
+  } catch {
+    // ignore
+  }
+  return undefined;
+}
+
+function resolveConnectionString(preferApp: boolean): string | undefined {
+  const hd = resolveHyperdriveConnectionString();
+  if (hd) return hd;
+  if (preferApp) {
+    return process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL;
+  }
+  return process.env.DATABASE_URL ?? process.env.APP_DATABASE_URL;
+}
+
+/**
+ * Produção/PostgreSQL: DATABASE_URL presente -> nunca toca em PGlite.
+ * Desenvolvimento: usa PGlite local em .data/clinicos.
+ */
+function pgliteDataDir(): string {
+  const configured = process.env.PGLITE_DATA_DIR ?? '.data/clinicos';
+  return path.isAbsolute(configured)
+    ? configured
+    : path.join(/*turbopackIgnore: true*/ process.cwd(), configured);
+}
+
+// Importação LAZY: o módulo PGlite (WASM) só é carregado em desenvolvimento,
+// nunca no bundle de produção do Vercel/Cloudflare.
+async function loadPgliteModule(): Promise<{ PGlite: new (dataDir: string) => any }> {
+  if (!globalForDb.__clinicosPgliteModule) {
+    globalForDb.__clinicosPgliteModule = import('@electric-sql/pglite') as Promise<any>;
+  }
+  return globalForDb.__clinicosPgliteModule;
+}
+
+export async function getPglite(): Promise<any> {
+  if (isPostgres()) {
+    throw new Error(
+      'PGlite não pode ser usado quando DATABASE_URL está definida (produção).',
+    );
+  }
+  if (globalForDb.__clinicosPglite) {
+    return globalForDb.__clinicosPglite;
+  }
+  const { PGlite } = await loadPgliteModule();
+  const dataDir = pgliteDataDir();
+  mkdirSync(dataDir, { recursive: true });
+  globalForDb.__clinicosPglite = new PGlite(dataDir);
+  return globalForDb.__clinicosPglite;
+}
+
+/**
+ * Monta a configuração de SSL para o pool.
+ * - DB_SSL=true força SSL.
+ * - A presença de sslmode=require na connection string também ativa SSL.
+ * - DB_SSL_REJECT_UNAUTHORIZED=false desativa a verificação do certificado
+ *   (necessário para Supabase, que usa certificado autoassinado).
+ */
+function buildSsl(connectionString: string): { rejectUnauthorized: boolean } | undefined {
+  const forced = process.env.DB_SSL === 'true';
+  const fromUrl = /sslmode=require/i.test(connectionString);
+  if (!forced && !fromUrl) return undefined;
+  return {
+    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+  };
+}
+
+/**
+ * Remove sslmode da URL para evitar que o pg-connection-string sobrescreva
+ * a configuração de SSL definida explicitamente (necessário para Supabase).
+ */
+function stripSslMode(connectionString: string): string {
+  return connectionString
+    .replace(/[?&]sslmode=[^&]*/gi, (match) => (match.startsWith('?') ? '?' : ''))
+    .replace(/\?$/, '');
+}
+
+function getAppPool(): Pool {
+  const raw = resolveConnectionString(true);
+  if (!raw) {
+    throw new Error('APP_DATABASE_URL, DATABASE_URL ou HYPERDRIVE não configurada.');
+  }
+  const connectionString = stripSslMode(raw);
+  if (!globalForDb.__clinicosAppPool) {
+    globalForDb.__clinicosAppPool = new Pool({
+      connectionString,
+      max: Number(process.env.DATABASE_POOL_MAX ?? 3),
+      idleTimeoutMillis: 30_000,
+      options: '-c timezone=America/Sao_Paulo',
+      ssl: buildSsl(raw),
+    });
+
+    globalForDb.__clinicosAppPool.on('error', (error) => {
+      console.error('[ClinicOS][APP_POOL]', error.message);
+    });
+  }
+  return globalForDb.__clinicosAppPool;
+}
+
+function getAdminPool(): Pool {
+  const raw = resolveConnectionString(false);
+  if (!raw) {
+    throw new Error('DATABASE_URL, APP_DATABASE_URL ou HYPERDRIVE não configurada.');
+  }
+  const connectionString = stripSslMode(raw);
+  if (!globalForDb.__clinicosAdminPool) {
+    globalForDb.__clinicosAdminPool = new Pool({
+      connectionString,
+      max: 2,
+      idleTimeoutMillis: 30_000,
+      options: '-c timezone=America/Sao_Paulo',
+      ssl: buildSsl(raw),
+    });
+
+    globalForDb.__clinicosAdminPool.on('error', (error) => {
+      console.error('[ClinicOS][ADMIN_POOL]', error.message);
+    });
+  }
+  return globalForDb.__clinicosAdminPool;
+}
+
+/**
+ * Consulta privilegiada, usada somente para bootstrap de autenticação
+ * (localizar usuário por e-mail, memberships e vínculo de plataforma).
+ * Nunca expõe dados clínicos: os casos de uso operacionais passam por
+ * `withTenant`, que ativa a RLS.
+ */
+export async function rawTrustedQuery<T = DbRow>(
+  sql: string,
+  params: unknown[] = [],
+): Promise<T[]> {
+  if (!isPostgres()) {
+    const db = await getPglite();
+    const result = await db.query(sql, params);
+    return result.rows as T[];
+  }
+  const result = await getAdminPool().query(sql, params);
+  return result.rows as T[];
+}
+
+export interface TenantContext {
+  userId: string;
+  clinicId?: string | null;
+}
+
+async function configureSession(query: SessionQuery, context: TenantContext) {
+  // Em produção o pool de aplicação já conecta como clinicos_app.
+  // No PGlite local conectamos como owner, então trocamos de papel para
+  // que a RLS seja realmente aplicada.
+  if (!isPostgres()) {
+    await query('set local role clinicos_app');
+  } else if (process.env.DB_SET_ROLE !== 'false') {
+    await query('set local role clinicos_app');
+  }
+  // Garante o fuso horário da clínica em toda transação (evita conflitos por timezone).
+  await query(`select set_config('app.user_id', $1, true)`, [context.userId]);
+  await query(`select set_config('app.clinic_id', $1, true)`, [
+    context.clinicId ?? '',
+  ]);
+}
+
+export async function rawTransaction<T>(
+  context: TenantContext,
+  callback: (tx: Queryable) => Promise<T>,
+): Promise<T> {
+  if (!isPostgres()) {
+    const db = await getPglite();
+    return db.transaction(async (transaction: any) => {
+      const query: SessionQuery = async (sql, params = []) => {
+        const result = await transaction.query(sql, params);
+        return result.rows as DbRow[];
+      };
+      await configureSession(query, context);
+      return callback({
+        query: async <T = DbRow>(sql: string, params: unknown[] = []) =>
+          (await query(sql, params)) as T[],
+      });
+    });
+  }
+
+  const client: PoolClient = await getAppPool().connect();
+  try {
+    await client.query('begin');
+    const query: SessionQuery = async (sql, params = []) => {
+      const result = await client.query(sql, params);
+      return result.rows as DbRow[];
+    };
+    await configureSession(query, context);
+    const result = await callback({
+      query: async <T = DbRow>(sql: string, params: unknown[] = []) =>
+        (await query(sql, params)) as T[],
+    });
+    await client.query('commit');
+    return result;
+  } catch (error) {
+    await client.query('rollback');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function closeDatabase(): Promise<void> {
+  if (globalForDb.__clinicosPglite) {
+    await (globalForDb.__clinicosPglite as any).close();
+    globalForDb.__clinicosPglite = undefined;
+  }
+  await globalForDb.__clinicosAppPool?.end();
+  await globalForDb.__clinicosAdminPool?.end();
+  globalForDb.__clinicosAppPool = undefined;
+  globalForDb.__clinicosAdminPool = undefined;
+}
+
+========================================
+ARQUIVO: src/lib/db/index.ts
+========================================
+import 'server-only';
+
+import { ensureDatabaseReady } from './bootstrap';
+import {
+  rawTransaction,
+  rawTrustedQuery,
+  type DbRow,
+  type Queryable,
+  type TenantContext,
+} from './client';
+
+export type { DbRow, Queryable, TenantContext };
+
+/** Consulta privilegiada restrita ao bootstrap de autenticação. */
+export async function trustedQuery<T = DbRow>(
+  sql: string,
+  params: unknown[] = [],
+): Promise<T[]> {
+  await ensureDatabaseReady();
+  return rawTrustedQuery<T>(sql, params);
+}
+
+export async function trustedQueryOne<T = DbRow>(
+  sql: string,
+  params: unknown[] = [],
+): Promise<T | null> {
+  const rows = await trustedQuery<T>(sql, params);
+  return rows[0] ?? null;
+}
+
+/** Transação com contexto de tenant — a RLS é aplicada pelo banco. */
+export async function withTenant<T>(
+  context: TenantContext,
+  callback: (tx: Queryable) => Promise<T>,
+): Promise<T> {
+  await ensureDatabaseReady();
+  return rawTransaction(context, callback);
+}
+
+/** Transação de plataforma: identifica o usuário, sem clínica ativa. */
+export async function withPlatform<T>(
+  userId: string,
+  callback: (tx: Queryable) => Promise<T>,
+): Promise<T> {
+  await ensureDatabaseReady();
+  return rawTransaction({ userId, clinicId: null }, callback);
+}
+
+========================================
+ARQUIVO: src/lib/auth/current-user.ts
+========================================
+import 'server-only';
+
+import { cache } from 'react';
+import { readSession } from './session';
+import { trustedQuery } from '@/lib/db';
+import type {
+  ClinicRole,
+  CurrentUser,
+  MembershipInfo,
+  PortalAccessInfo,
+} from './types';
+
+interface UserRow {
+  id: string;
+  email: string;
+  full_name: string;
+  avatar_url: string | null;
+  status: string;
+  is_platform_admin: boolean;
+}
+
+interface MembershipRow {
+  membership_id: string;
+  clinic_id: string;
+  clinic_name: string;
+  clinic_status: string;
+  role: ClinicRole;
+  unit_id: string | null;
+}
+
+interface PortalRow {
+  clinic_id: string;
+  clinic_name: string;
+  patient_id: string;
+  patient_name: string;
+}
+
+async function loadCurrentUser(): Promise<CurrentUser | null> {
+  const session = await readSession();
+  if (!session) return null;
+
+  const user = (
+    await trustedQuery<UserRow>(
+      `select u.id, u.email, u.full_name, u.avatar_url, u.status,
+              exists (
+                select 1 from platform_admins pa
+                where pa.user_id = u.id and pa.status = 'ativo'
+              ) as is_platform_admin
+         from users u
+        where u.id = $1
+        limit 1`,
+      [session.userId],
+    )
+  )[0];
+
+  if (!user || user.status !== 'ativo') return null;
+
+  const [membershipRows, portalRows] = await Promise.all([
+    trustedQuery<MembershipRow>(
+      `select m.id as membership_id,
+              m.clinic_id,
+              c.display_name as clinic_name,
+              c.status::text as clinic_status,
+              m.role::text as role,
+              (
+                select mu.unit_id
+                  from membership_units mu
+                 where mu.membership_id = m.id
+                 order by mu.unit_id
+                 limit 1
+              ) as unit_id
+         from clinic_memberships m
+         join clinics c on c.id = m.clinic_id
+        where m.user_id = $1
+          and m.status = 'ativo'
+        order by c.display_name`,
+      [user.id],
+    ),
+    trustedQuery<PortalRow>(
+      `select a.clinic_id,
+              c.display_name as clinic_name,
+              a.patient_id,
+              p.full_name as patient_name
+         from patient_portal_access a
+         join clinics c on c.id = a.clinic_id
+         join patients p on p.id = a.patient_id
+        where a.user_id = $1
+          and a.status = 'ativo'
+        order by c.display_name`,
+      [user.id],
+    ),
+  ]);
+
+  const memberships: MembershipInfo[] = membershipRows.map((row) => ({
+    membershipId: row.membership_id,
+    clinicId: row.clinic_id,
+    clinicName: row.clinic_name,
+    clinicStatus: row.clinic_status,
+    role: row.role,
+    unitId: row.unit_id,
+  }));
+
+  const portalAccess: PortalAccessInfo[] = portalRows.map((row) => ({
+    clinicId: row.clinic_id,
+    clinicName: row.clinic_name,
+    patientId: row.patient_id,
+    patientName: row.patient_name,
+  }));
+
+  const requestedClinic =
+    session.clinicId && memberships.some((item) => item.clinicId === session.clinicId)
+      ? session.clinicId
+      : (memberships[0]?.clinicId ?? null);
+
+  const activeMembership =
+    memberships.find((item) => item.clinicId === requestedClinic) ?? null;
+
+  return {
+    id: user.id,
+    email: user.email,
+    fullName: user.full_name,
+    avatarUrl: user.avatar_url,
+    isPlatformAdmin: user.is_platform_admin,
+    memberships,
+    portalAccess,
+    activeClinicId: requestedClinic,
+    activeMembership,
+    activeClinicName: activeMembership?.clinicName ?? null,
+  };
+}
+
+export const getCurrentUser = cache(loadCurrentUser);
+
+========================================
+ARQUIVO: src/lib/auth/session.ts
+========================================
+import 'server-only';
+
+import { cookies } from 'next/headers';
+import { SignJWT, jwtVerify } from 'jose';
+
+const COOKIE_NAME = 'clinicos_session';
+const SESSION_HOURS = 8;
+
+export interface SessionPayload {
+  userId: string;
+  clinicId: string | null;
+}
+
+function getSecret(): Uint8Array {
+  const secret = process.env.AUTH_SECRET;
+  if (secret && secret.length >= 32) {
+    return new TextEncoder().encode(secret);
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'AUTH_SECRET ausente ou curto. Defina uma chave de pelo menos 32 caracteres em produção.',
+    );
+  }
+  // Chave exclusiva de desenvolvimento local.
+  return new TextEncoder().encode('clinicos-dev-only-secret-change-me-32chars');
+}
+
+export async function createSessionToken(payload: SessionPayload): Promise<string> {
+  return new SignJWT({ clinicId: payload.clinicId })
+    .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+    .setSubject(payload.userId)
+    .setIssuedAt()
+    .setExpirationTime(`${SESSION_HOURS}h`)
+    .setIssuer('clinicos')
+    .setAudience('clinicos-web')
+    .sign(getSecret());
+}
+
+export async function verifySessionToken(
+  token: string,
+): Promise<SessionPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, getSecret(), {
+      issuer: 'clinicos',
+      audience: 'clinicos-web',
+    });
+    if (!payload.sub) return null;
+    return {
+      userId: payload.sub,
+      clinicId: typeof payload.clinicId === 'string' ? payload.clinicId : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function readSession(): Promise<SessionPayload | null> {
+  const store = await cookies();
+  const token = store.get(COOKIE_NAME)?.value;
+  if (!token) return null;
+  return verifySessionToken(token);
+}
+
+export async function writeSession(payload: SessionPayload): Promise<void> {
+  const store = await cookies();
+  const token = await createSessionToken(payload);
+  store.set(COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: SESSION_HOURS * 60 * 60,
+  });
+}
+
+export async function clearSession(): Promise<void> {
+  const store = await cookies();
+  store.delete(COOKIE_NAME);
+}
+
+export const SESSION_COOKIE_NAME = COOKIE_NAME;
+
+========================================
+ARQUIVO: src/lib/auth/guards.ts
+========================================
+import 'server-only';
+
+import { notFound, redirect } from 'next/navigation';
+import { getCurrentUser } from './current-user';
+import type {
+  ClinicSessionUser,
+  PlatformSessionUser,
+  PortalSessionUser,
+} from './types';
+
+function fallbackDestination(user: {
+  isPlatformAdmin: boolean;
+  activeMembership: unknown;
+  portalAccess: unknown[];
+}): string {
+  if (user.activeMembership) return '/app/painel';
+  if (user.isPlatformAdmin) return '/admin';
+  if (user.portalAccess.length > 0) return '/portal';
+  return '/login?erro=sem-acesso';
+}
+
+export async function requireClinicUser(): Promise<ClinicSessionUser> {
+  const user = await getCurrentUser();
+  if (!user) redirect('/login');
+
+  if (!user.activeClinicId || !user.activeMembership) {
+    if (user.isPlatformAdmin) redirect('/admin');
+    if (user.portalAccess.length > 0) redirect('/portal');
+    redirect('/login?erro=sem-acesso');
+  }
+
+  return user as ClinicSessionUser;
+}
+
+export async function requirePlatformAdmin(): Promise<PlatformSessionUser> {
+  const user = await getCurrentUser();
+  if (!user) redirect('/login');
+
+  if (!user.isPlatformAdmin) {
+    redirect(fallbackDestination(user));
+  }
+
+  return user as PlatformSessionUser;
+}
+
+export async function requirePortalUser(): Promise<PortalSessionUser> {
+  const user = await getCurrentUser();
+  if (!user) redirect('/login');
+
+  if (user.portalAccess.length === 0) {
+    redirect(fallbackDestination(user));
+  }
+
+  return user as PortalSessionUser;
+}
+
+export async function requirePermission(permission: string) {
+  const user = await requireClinicUser();
+  const { hasPermission } = await import('@/lib/permissions');
+  const allowed = await hasPermission(user.id, user.activeClinicId, permission);
+  if (!allowed) notFound();
+  return user;
+}
+
+========================================
+ARQUIVO: src/lib/tenant/context.ts
+========================================
+import 'server-only';
+
+import { cache } from 'react';
+import { getClinicEntitlements, entitledKeys } from './entitlements';
+import { getRolePermissions } from '@/lib/permissions';
+import type { ClinicRole } from '@/lib/auth/types';
+
+export const loadClinicContext = cache(
+  async (userId: string, clinicId: string, role: ClinicRole) => {
+    const [entitlements, permissions] = await Promise.all([
+      getClinicEntitlements(userId, clinicId),
+      getRolePermissions(userId, clinicId, role),
+    ]);
+
+    return {
+      entitlements,
+      permissions,
+      modules: entitledKeys(entitlements),
+    };
+  },
+);
+
+========================================
+ARQUIVO: src/lib/permissions/index.ts
+========================================
+import 'server-only';
+
+import { withPlatform, withTenant } from '@/lib/db';
+import type { ClinicRole } from '@/lib/auth/types';
+
+export async function hasPermission(
+  userId: string,
+  clinicId: string,
+  permission: string,
+): Promise<boolean> {
+  return withTenant({ userId, clinicId }, async (tx) => {
+    const rows = await tx.query<{ allowed: boolean }>(
+      `select app_has_permission($1, $2) as allowed`,
+      [clinicId, permission],
+    );
+    return Boolean(rows[0]?.allowed);
+  });
+}
+
+export async function getRolePermissions(
+  userId: string,
+  clinicId: string,
+  role: ClinicRole,
+): Promise<Set<string>> {
+  return withTenant({ userId, clinicId }, async (tx) => {
+    const rows = await tx.query<{ key: string }>(
+      `select p.key
+         from permissions p
+         join role_permissions rp on rp.permission_id = p.id
+        where rp.role = $1
+        order by p.key`,
+      [role],
+    );
+    return new Set(rows.map((row) => row.key));
+  });
+}
+
+export function can(
+  permissions: Set<string>,
+  permission: string,
+): boolean {
+  return permissions.has(permission);
+}
+
+export async function getPlatformPermissions(userId: string): Promise<Set<string>> {
+  return withPlatform(userId, async (tx) => {
+    const rows = await tx.query<{ key: string }>(
+      `select p.key
+         from permissions p
+         join role_permissions rp on rp.permission_id = p.id
+        where rp.role = 'platform_admin'
+        order by p.key`,
+    );
+    return new Set(rows.map((row) => row.key));
+  });
+}
+
+========================================
+ARQUIVO: src/lib/roles.ts
+========================================
+import type { AppRole } from '@/lib/auth/types';
+
+const labels: Record<AppRole, string> = {
+  platform_admin: 'Superadministrador',
+  clinic_admin: 'Administrador(a) da clínica',
+  doctor: 'Médico(a)',
+  receptionist: 'Recepção',
+  finance: 'Financeiro',
+  patient: 'Paciente',
+};
+
+export function roleLabel(role: AppRole | string): string {
+  return labels[role as AppRole] ?? role;
+}
+
+export function roleShortLabel(role: AppRole | string): string {
+  const short: Record<AppRole, string> = {
+    platform_admin: 'Superadministrador',
+    clinic_admin: 'Administrador(a)',
+    doctor: 'Médico(a)',
+    receptionist: 'Recepção',
+    finance: 'Financeiro',
+    patient: 'Paciente',
+  };
+  return short[role as AppRole] ?? role;
+}
+

@@ -37,7 +37,7 @@ export async function requestAppointmentAction(
     await withTenant({ userId: user.id, clinicId }, async (tx) => {
       // conflito
       await tx.query(`select pg_advisory_xact_lock(hashtext($1))`, [professionalId]);
-      const startIso = `${date}T${time}:00`;
+      const startIso = `${date}T${time}:00-03:00`;
       const durRows = await tx.query<{ default_duration_min: number }>(
         `select default_duration_min from professionals where id = $1`,
         [professionalId],
@@ -53,7 +53,7 @@ export async function requestAppointmentAction(
         [professionalId, startIso, endIso],
       );
       if (conflicts.length > 0) {
-        throw new Error('Horário indisponível para este profissional.');
+        throw new Error('Horário ocupado para este profissional');
       }
 
       const prof = await tx.query<{ consultation_price: string }>(

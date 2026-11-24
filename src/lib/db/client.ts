@@ -19,7 +19,34 @@ const globalForDb = globalThis as unknown as {
 };
 
 export function isPostgres(): boolean {
+  // Hyperdrive (Cloudflare) também fornece PostgreSQL
+  const hyperdrive = (process.env as any)?.HYPERDRIVE ?? (globalThis as any)?.HYPERDRIVE;
+  if (hyperdrive && typeof hyperdrive.connectionString === 'string') return true;
   return Boolean(process.env.DATABASE_URL || process.env.APP_DATABASE_URL);
+}
+
+/**
+ * Resolve a connection string a partir do Hyperdrive (Cloudflare) ou env vars.
+ */
+function resolveHyperdriveConnectionString(): string | undefined {
+  try {
+    const hd = (process.env as any)?.HYPERDRIVE ?? (globalThis as any)?.HYPERDRIVE;
+    if (hd && typeof hd.connectionString === 'string') {
+      return hd.connectionString;
+    }
+  } catch {
+    // ignore
+  }
+  return undefined;
+}
+
+function resolveConnectionString(preferApp: boolean): string | undefined {
+  const hd = resolveHyperdriveConnectionString();
+  if (hd) return hd;
+  if (preferApp) {
+    return process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL;
+  }
+  return process.env.DATABASE_URL ?? process.env.APP_DATABASE_URL;
 }
 
 /**
@@ -34,7 +61,7 @@ function pgliteDataDir(): string {
 }
 
 // Importação LAZY: o módulo PGlite (WASM) só é carregado em desenvolvimento,
-// nunca no bundle de produção do Vercel.
+// nunca no bundle de produção do Vercel/Cloudflare.
 async function loadPgliteModule(): Promise<{ PGlite: new (dataDir: string) => any }> {
   if (!globalForDb.__clinicosPgliteModule) {
     globalForDb.__clinicosPgliteModule = import('@electric-sql/pglite') as Promise<any>;
@@ -63,14 +90,19 @@ export async function getPglite(): Promise<any> {
  * - DB_SSL=true força SSL.
  * - A presença de sslmode=require na connection string também ativa SSL.
  * - DB_SSL_REJECT_UNAUTHORIZED=false desativa a verificação do certificado
+<<<<<<< HEAD
  *   (útil em ambientes com certificado autoassinado, como alguns hosts).
  *
+=======
+ *   (necessário para Supabase, que usa certificado autoassinado).
+ */
+>>>>>>> cda3908 (Atualização de funções no ClinicOS)
 function buildSsl(connectionString: string): { rejectUnauthorized: boolean } | undefined {
   const forced = process.env.DB_SSL === 'true';
   const fromUrl = /sslmode=require/i.test(connectionString);
   if (!forced && !fromUrl) return undefined;
   return {
-    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'true',
+    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
   };
 }
 */
@@ -88,19 +120,29 @@ function buildSsl(rawConnectionString: string): PoolConfig['ssl'] {
   };
 }
 
+/**
+ * Remove sslmode da URL para evitar que o pg-connection-string sobrescreva
+ * a configuração de SSL definida explicitamente (necessário para Supabase).
+ */
+function stripSslMode(connectionString: string): string {
+  return connectionString
+    .replace(/[?&]sslmode=[^&]*/gi, (match) => (match.startsWith('?') ? '?' : ''))
+    .replace(/\?$/, '');
+}
+
 function getAppPool(): Pool {
-  const connectionString =
-    process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error('APP_DATABASE_URL ou DATABASE_URL não configurada.');
+  const raw = resolveConnectionString(true);
+  if (!raw) {
+    throw new Error('APP_DATABASE_URL, DATABASE_URL ou HYPERDRIVE não configurada.');
   }
+  const connectionString = stripSslMode(raw);
   if (!globalForDb.__clinicosAppPool) {
     globalForDb.__clinicosAppPool = new Pool({
       connectionString,
-      max: Number(process.env.DATABASE_POOL_MAX ?? 10),
-      idleTimeoutMillis: 30_000,
+      max: Number(process.env.DATABASE_POOL_MAX ?? 1),
+      idleTimeoutMillis: 10_000,
       options: '-c timezone=America/Sao_Paulo',
-      ssl: buildSsl(connectionString),
+      ssl: buildSsl(raw),
     });
 
     globalForDb.__clinicosAppPool.on('error', (error) => {
@@ -111,18 +153,18 @@ function getAppPool(): Pool {
 }
 
 function getAdminPool(): Pool {
-  const connectionString =
-    process.env.DATABASE_URL ?? process.env.APP_DATABASE_URL;
-  if (!connectionString) {
-    throw new Error('DATABASE_URL ou APP_DATABASE_URL não configurada.');
+  const raw = resolveConnectionString(false);
+  if (!raw) {
+    throw new Error('DATABASE_URL, APP_DATABASE_URL ou HYPERDRIVE não configurada.');
   }
+  const connectionString = stripSslMode(raw);
   if (!globalForDb.__clinicosAdminPool) {
     globalForDb.__clinicosAdminPool = new Pool({
       connectionString,
-      max: 2,
-      idleTimeoutMillis: 30_000,
+      max: 1,
+      idleTimeoutMillis: 10_000,
       options: '-c timezone=America/Sao_Paulo',
-      ssl: buildSsl(connectionString),
+      ssl: buildSsl(raw),
     });
 
     globalForDb.__clinicosAdminPool.on('error', (error) => {
@@ -165,6 +207,7 @@ async function configureSession(query: SessionQuery, context: TenantContext) {
   } else if (process.env.DB_SET_ROLE !== 'false') {
     await query('set local role clinicos_app');
   }
+  // Garante o fuso horário da clínica em toda transação (evita conflitos por timezone).
   await query(`select set_config('app.user_id', $1, true)`, [context.userId]);
   await query(`select set_config('app.clinic_id', $1, true)`, [
     context.clinicId ?? '',

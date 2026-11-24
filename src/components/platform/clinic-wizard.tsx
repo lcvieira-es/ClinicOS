@@ -23,6 +23,8 @@ import { formatCnpj } from '@/lib/platform/format';
 import { formatCurrency } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { formatPhoneBR } from '@/lib/utils/phone';
+import { lookupCep } from '@/lib/utils/cep';
 
 export interface WizardPlan {
   id: string;
@@ -333,9 +335,9 @@ export function ClinicWizard({ plans }: { plans: WizardPlan[] }) {
               <WizardField label="Nome de exibição *" value={form.displayName} onChange={(v) => set('displayName', v)} placeholder="Clínica Exemplo" />
               <WizardField label="CNPJ" value={form.cnpj} onChange={(v) => set('cnpj', v)} placeholder="00.000.000/0000-00" mono />
               <WizardField label="E-mail da clínica" type="email" value={form.email} onChange={(v) => set('email', v)} placeholder="contato@clinica.com.br" />
-              <WizardField label="Telefone" value={form.phone} onChange={(v) => set('phone', v)} placeholder="(11) 4000-0000" />
-              <WizardField label="WhatsApp" value={form.whatsapp} onChange={(v) => set('whatsapp', v)} placeholder="(11) 90000-0000" />
-              <WizardField label="CEP" value={form.cep} onChange={(v) => set('cep', v)} placeholder="00000-000" mono />
+              <WizardField label="Telefone" value={form.phone} onChange={(v) => set('phone', formatPhoneBR(v))} placeholder="(11) 4000-0000" />
+              <WizardField label="WhatsApp" value={form.whatsapp} onChange={(v) => set('whatsapp', formatPhoneBR(v))} placeholder="(11) 90000-0000" />
+              <WizardField label="CEP" value={form.cep} onChange={async (v) => { set('cep', v); const data = await lookupCep(v); if (!data) return; set('address', data.logradouro); set('neighborhood', data.bairro); set('city', data.localidade); set('state', data.uf); }} placeholder="00000-000" mono />
               <WizardField label="Endereço *" value={form.address} onChange={(v) => set('address', v)} placeholder="Avenida Paulista" className="sm:col-span-2" />
               <WizardField label="Número *" value={form.addressNumber} onChange={(v) => set('addressNumber', v)} placeholder="1000" />
               <WizardField label="Bairro" value={form.neighborhood} onChange={(v) => set('neighborhood', v)} placeholder="Bela Vista" />
@@ -362,7 +364,7 @@ export function ClinicWizard({ plans }: { plans: WizardPlan[] }) {
               </div>
               <WizardField label="Nome da unidade *" value={form.unitName} onChange={(v) => set('unitName', v)} placeholder="Matriz" />
               <WizardField label="Código interno" value={form.unitCode} onChange={(v) => set('unitCode', v)} placeholder="MATRIZ-01" mono />
-              <WizardField label="Telefone da unidade" value={form.unitPhone} onChange={(v) => set('unitPhone', v)} placeholder="(11) 4000-0000" />
+              <WizardField label="Telefone da unidade" value={form.unitPhone} onChange={(v) => set('unitPhone', formatPhoneBR(v))} placeholder="(11) 4000-0000" />
               <WizardField label="E-mail da unidade" type="email" value={form.unitEmail} onChange={(v) => set('unitEmail', v)} placeholder="unidade@clinica.com.br" />
               <WizardField label="Horário de funcionamento" value={form.unitOpeningHours} onChange={(v) => set('unitOpeningHours', v)} className="sm:col-span-2" />
               <div className="sm:col-span-2 rounded-xl bg-sky-50 px-3 py-2.5 text-[11px] text-ink-500">

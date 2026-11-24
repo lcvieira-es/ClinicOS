@@ -3,6 +3,8 @@ import { AccessRestricted } from '@/components/feedback/access-restricted';
 import { getClinicSettings } from '@/lib/clinic/configuracoes';
 import { updateClinicSettingsAction } from '@/lib/clinic/actions/configuracoes';
 import { PageHeader } from '@/components/ui/page-header';
+import { CepAutoFill } from '@/components/clinic/cep-auto-fill';
+import { PhoneAutoFill } from '@/components/clinic/phone-auto-fill';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Alert } from '@/components/ui/alert';
 import { Field, Input } from '@/components/ui/input';
@@ -72,14 +74,14 @@ export default async function ConfiguracoesPage({
                 </Field>
               </div>
               <div className="flex flex-wrap items-end gap-3">
+                <Field label="CEP" htmlFor="cep" className="w-[20%]">
+                  <Input id="cep" name="cep" defaultValue={settings.cep ?? ''} />
+                </Field>
                 <Field label="Endereço" htmlFor="address" className="w-[30%]">
                   <Input id="address" name="address" defaultValue={settings.address ?? ''} />
                 </Field>
                 <Field label="Número" htmlFor="addressNumber" className="w-[20%]">
                   <Input id="addressNumber" name="addressNumber" defaultValue={settings.address_number ?? ''} />
-                </Field>
-                <Field label="CEP" htmlFor="cep" className="w-[20%]">
-                  <Input id="cep" name="cep" defaultValue={settings.cep ?? ''} />
                 </Field>
               </div>
               <div className="grid gap-4 sm:grid-cols-4">
@@ -107,7 +109,9 @@ export default async function ConfiguracoesPage({
                   Salvar configurações
                 </button>
               </div>
-            </form>
+            <CepAutoFill />
+              <PhoneAutoFill />
+              </form>
           ) : (
             <dl className="grid gap-2 text-[11px]">
               <div className="flex justify-between gap-3">

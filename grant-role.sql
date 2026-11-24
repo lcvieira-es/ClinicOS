@@ -1,0 +1,1 @@
+GRANT clinicos_app TO "postgres.ljcxepiyhlhqeozwcwen";

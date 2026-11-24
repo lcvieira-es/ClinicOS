@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { LogOut, ShieldCheck } from 'lucide-react';
+import { LogOut, Printer, ShieldCheck } from 'lucide-react';
 import { Logo } from '@/components/brand/logo';
 import { Avatar } from '@/components/ui/avatar';
 import { AppFooter } from '@/components/layout/footer';
@@ -69,6 +69,16 @@ export function PortalShell({
               </p>
               <p className="text-[13px] text-ink-400">Paciente</p>
             </div>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-line text-ink-500 transition hover:bg-sky-50 hover:text-navy-900"
+              aria-label="Imprimir página"
+              title="Imprimir"
+            >
+              <Printer className="h-4 w-4" />
+            </button>
+
             <form action={logoutAction}>
               <button
                 type="submit"

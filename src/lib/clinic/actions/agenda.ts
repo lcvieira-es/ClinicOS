@@ -30,17 +30,20 @@ const appointmentSchema = z.object({
   time: z.string().regex(/^\d{2}:\d{2}$/, 'Horário inválido.'),
   durationMin: z.string().trim().optional(),
   type: z.enum(['consulta', 'retorno', 'procedimento', 'teleconsulta', 'avaliacao']),
-  paymentMethod: z.enum([
-    'particular',
-    'pix',
-    'dinheiro',
-    'cartao_credito',
-    'cartao_debito',
-    'boleto',
-    'convenio',
-    'transferencia',
-    'outro',
-  ]),
+  paymentMethod: z
+    .enum([
+      'particular',
+      'pix',
+      'dinheiro',
+      'cartao_credito',
+      'cartao_debito',
+      'boleto',
+      'convenio',
+      'transferencia',
+      'outro',
+    ])
+    .optional()
+    .default('particular'),
   amount: z.string().trim().optional(),
   notes: z.string().trim().optional(),
 });
@@ -89,6 +92,76 @@ function parseIntSafe(value: string | undefined, fallback: number): number {
   return number;
 }
 
+export async function checkSlotAvailabilityAction(
+  _previous: ClinicFormState,
+  formData: FormData,
+): Promise<ClinicFormState> {
+  let userId: string;
+  let clinicId: string;
+  try {
+    const access = await requireModulePermission('agenda', 'agenda:create');
+    userId = access.user.id;
+    clinicId = access.user.activeClinicId;
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { error: errorMessage(error) };
+  }
+
+  const professionalId = String(formData.get('professionalId') ?? '').trim();
+  const date = String(formData.get('date') ?? '').trim();
+  const time = String(formData.get('time') ?? '').trim();
+  const durationMin = String(formData.get('durationMin') ?? '30').trim();
+
+  if (!isUuid(professionalId) || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
+    return { error: 'Dados inválidos.' };
+  }
+
+  const duration = parseIntSafe(durationMin, 30);
+  const startIso = `${date}T${time}:00-03:00`;
+  const start = new Date(startIso);
+  const end = new Date(start.getTime() + duration * 60_000);
+  const endIso = end.toISOString();
+
+  try {
+    await withTenant({ userId, clinicId }, async (tx) => {
+      await tx.query(`select pg_advisory_xact_lock(hashtext($1))`, [professionalId]);
+
+      const conflicts = await tx.query<{ id: string }>(
+        `select id from appointments
+          where professional_id = $1
+            and status <> 'cancelada'
+            and scheduled_start < $3::timestamptz
+            and scheduled_end > $2::timestamptz
+          limit 1`,
+        [professionalId, startIso, endIso],
+      );
+      if (conflicts.length > 0) {
+        throw new ActionError('Horário ocupado para este profissional');
+      }
+
+      const blocks = await tx.query<{ id: string }>(
+        `select id from schedule_blocks
+          where professional_id = $1
+            and starts_at < $3::timestamptz
+            and ends_at > $2::timestamptz
+          limit 1`,
+        [professionalId, startIso, endIso],
+      );
+      if (blocks.length > 0) {
+        throw new ActionError('Horário ocupado para este profissional');
+      }
+    });
+    return { success: 'disponível' };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const msg = errorMessage(error);
+    if (msg === 'Horário ocupado para este profissional') {
+      return { error: 'Horário ocupado para este profissional' };
+    }
+    return { error: msg };
+  }
+}
+
 export async function createAppointmentAction(
   _previous: ClinicFormState,
   formData: FormData,
@@ -109,6 +182,9 @@ export async function createAppointmentAction(
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos.' };
   }
   const data = parsed.data;
+  console.error('[appt-debug] date=', data.date, 'time=', data.time, 'unitId=', data.unitId, 'patientId=', data.patientId);
+  console.error('[appt-debug] clinicId=', clinicId, 'unitId=', data.unitId, 'patientId=', data.patientId, 'profId=', data.professionalId);
+  console.error('[appt-debug] date=', data.date, 'time=', data.time);
 
   let duration: number;
   let amount: number;
@@ -119,7 +195,7 @@ export async function createAppointmentAction(
     return { error: errorMessage(error) };
   }
 
-  const startIso = `${data.date}T${data.time}:00`;
+  const startIso = `${data.date}T${data.time}:00-03:00`;
 
   try {
     const id = await withTenant({ userId, clinicId }, async (tx) => {
@@ -142,9 +218,7 @@ export async function createAppointmentAction(
         [data.professionalId, startIso, endIso],
       );
       if (conflicts.length > 0) {
-        throw new ActionError(
-          'Já existe um agendamento neste horário para o profissional.',
-        );
+        throw new ActionError('Horário ocupado para este profissional');
       }
 
       const blocks = await tx.query<{ id: string }>(
@@ -156,9 +230,7 @@ export async function createAppointmentAction(
         [data.professionalId, startIso, endIso],
       );
       if (blocks.length > 0) {
-        throw new ActionError(
-          'O profissional possui um bloqueio neste horário.',
-        );
+        throw new ActionError('Horário ocupado para este profissional');
       }
 
       const rows = await tx.query<{ id: string }>(
@@ -204,9 +276,10 @@ export async function createAppointmentAction(
     revalidatePath('/app/agenda');
     revalidatePath('/app/consultas');
     return { success: 'Agendamento criado com sucesso.', id };
-  } catch (error) {
+    } catch (error) {
     if (isRedirectError(error)) throw error;
-    return { error: errorMessage(error) };
+    console.error('[appt-err] ', error);
+    return { error: errorMessage(error) + ' :: ' + (error instanceof Error ? error.message : String(error)) };
   }
 }
 

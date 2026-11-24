@@ -2,16 +2,25 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Pool } from 'pg';
 
-const connectionString = process.env.DATABASE_URL ?? process.env.APP_DATABASE_URL;
-if (!connectionString) {
+const rawConnectionString = process.env.DATABASE_URL ?? process.env.APP_DATABASE_URL;
+if (!rawConnectionString) {
   console.error('DATABASE_URL (ou APP_DATABASE_URL) não configurada.');
   process.exit(1);
 }
 
+const connectionString = rawConnectionString.replace(/[?&]sslmode=[^&]*/gi, (m) =>
+  m.startsWith('?') ? '?' : '',
+).replace(/\?$/, '');
+
+const ssl =
+  process.env.DB_SSL === 'true' || /sslmode=require/i.test(rawConnectionString)
+    ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' }
+    : undefined;
+
 const seed = process.argv.includes('--seed');
 const forceSeed = process.argv.includes('--force-seed');
 
-const pool = new Pool({ connectionString, max: 1 });
+const pool = new Pool({ connectionString, max: 1, ssl });
 
 try {
   const client = await pool.connect();

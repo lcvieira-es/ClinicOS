@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useState, useEffect } from 'react';
 import { LoaderCircle, Copy, Check, Link2 } from 'lucide-react';
 import { createInviteAction } from '@/lib/clinic/actions/team';
 import type { InviteCreatedState } from '@/lib/clinic/actions/team';
@@ -14,9 +14,11 @@ export function InviteForm({ units: _units }: { units: Array<{ id: string; name:
     {},
   );
   const [copied, setCopied] = useState(false);
+  const [origin, setOrigin] = useState('');
 
-  const origin =
-    typeof window !== 'undefined' ? window.location.origin : '';
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   return (
     <form action={formAction} className="space-y-4">

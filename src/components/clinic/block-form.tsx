@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState, useEffect } from 'react';
 import { LoaderCircle, Save } from 'lucide-react';
 import { createBlockAction } from '@/lib/clinic/actions/agenda';
 import type { ClinicFormState } from '@/lib/clinic/form-state';
@@ -25,7 +25,6 @@ export function BlockForm({
     {},
   );
 
-  const now = new Date();
   const isoLocal = (date: Date) => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -34,8 +33,13 @@ export function BlockForm({
     const min = String(date.getMinutes()).padStart(2, '0');
     return `${y}-${m}-${d}T${h}:${min}`;
   };
-  const startDefault = isoLocal(now);
-  const endDefault = isoLocal(new Date(now.getTime() + 60 * 60_000));
+  const [startDefault, setStartDefault] = useState('');
+  const [endDefault, setEndDefault] = useState('');
+  useEffect(() => {
+    const now = new Date();
+    setStartDefault(isoLocal(now));
+    setEndDefault(isoLocal(new Date(now.getTime() + 60 * 60_000)));
+  }, []);
 
   return (
     <form action={formAction} className="space-y-4">

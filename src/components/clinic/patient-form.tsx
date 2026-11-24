@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, type ReactNode } from 'react';
+import { useActionState, type ReactNode, useRef, useEffect } from 'react';
 import { LoaderCircle, Save } from 'lucide-react';
 import {
   createPatientAction,
@@ -11,6 +11,8 @@ import type { PatientDetail } from '@/lib/clinic/patients';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Field, Input, Select } from '@/components/ui/input';
+import { lookupCep } from '@/lib/utils/cep';
+import { formatPhoneBR } from '@/lib/utils/phone';
 
 interface Option {
   id: string;
@@ -31,6 +33,26 @@ export function PatientForm({
   canSeeSensitive: boolean;
 }) {
   const action = mode === 'create' ? createPatientAction : updatePatientAction;
+  const cepRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const el = cepRef.current;
+    if (!el) return;
+    const handler = async () => {
+      const data = await lookupCep(el.value);
+      if (!data) return;
+      const set = (name: string, val: string) => {
+        const field = document.querySelector('input[name="' + name + '"]') as HTMLInputElement | null;
+        if (field && !field.value) field.value = val;
+      };
+      set('address', data.logradouro);
+      set('neighborhood', data.bairro);
+      set('city', data.localidade);
+      set('state', data.uf);
+    };
+    el.addEventListener('blur', handler);
+    return () => el.removeEventListener('blur', handler);
+  }, []);
+
   const [state, formAction, pending] = useActionState<ClinicFormState, FormData>(
     action,
     {},
@@ -129,6 +151,7 @@ export function PatientForm({
               inputMode="tel"
               defaultValue={patient?.phone ?? ''}
               placeholder="(11) 90000-0000"
+              onChange={(e) => { e.target.value = formatPhoneBR(e.target.value); }}
             />
           </Field>
           <Field label="WhatsApp" htmlFor="whatsapp">
@@ -137,10 +160,28 @@ export function PatientForm({
               name="whatsapp"
               inputMode="tel"
               defaultValue={patient?.whatsapp ?? ''}
+              onChange={(e) => { e.target.value = formatPhoneBR(e.target.value); }}
             />
           </Field>
           <Field label="CEP" htmlFor="cep">
-            <Input id="cep" name="cep" defaultValue={patient?.cep ?? ''} />
+            <Input
+              id="cep"
+              name="cep"
+              ref={cepRef}
+              defaultValue={patient?.cep ?? ''}
+              onBlur={async (e) => {
+                const data = await lookupCep(e.target.value);
+                if (!data) return;
+                const addr = document.querySelector('input[name="address"]') as HTMLInputElement | null;
+                const neigh = document.querySelector('input[name="neighborhood"]') as HTMLInputElement | null;
+                const city = document.querySelector('input[name="city"]') as HTMLInputElement | null;
+                const state = document.querySelector('input[name="state"]') as HTMLInputElement | null;
+                if (addr) addr.value = data.logradouro;
+                if (neigh) neigh.value = data.bairro;
+                if (city) city.value = data.localidade;
+                if (state) state.value = data.uf;
+              }}
+            />
           </Field>
           <Field label="Logradouro" htmlFor="address" className="sm:col-span-2">
             <Input
@@ -226,6 +267,7 @@ export function PatientForm({
               name="emergencyContactPhone"
               inputMode="tel"
               defaultValue={patient?.emergency_contact_phone ?? ''}
+              onChange={(e) => { e.target.value = formatPhoneBR(e.target.value); }}
             />
           </Field>
           <Field label="Unidade preferencial" htmlFor="preferredUnitId">

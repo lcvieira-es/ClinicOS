@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { trustedQuery } from '@/lib/db';
 import { verifyPassword } from './password';
-import { clearSession, writeSession } from './session';
+import { clearSession, writeSession, readSession } from './session';
 import { getCurrentUser } from './current-user';
 
 export interface LoginState {
@@ -116,6 +116,8 @@ export async function loginAction(
   );
 
   await writeSession({ userId: user.id, clinicId });
+
+  // Password change is no longer forced on first login; available at /alterar-senha.
 
   if (user.is_platform_admin) {
     redirect('/admin');

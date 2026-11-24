@@ -87,8 +87,8 @@ export async function getDayAgenda(
   return withTenant({ userId, clinicId }, async (tx) => {
     const params: unknown[] = [date];
     const conditions: string[] = [
-      `a.scheduled_start >= $1::date`,
-      `a.scheduled_start < ($1::date + interval '1 day')`,
+      `(a.scheduled_start AT TIME ZONE 'America/Sao_Paulo')::date >= $1::date`,
+      `(a.scheduled_start AT TIME ZONE 'America/Sao_Paulo')::date < ($1::date + interval '1 day')`,
     ];
     if (professionalId) {
       params.push(professionalId);
@@ -134,8 +134,8 @@ export async function getWeekAgenda(
 
     const params: unknown[] = [mondayIso, sundayIso];
     const conditions: string[] = [
-      `a.scheduled_start >= $1::date`,
-      `a.scheduled_start < ($2::date + interval '1 day')`,
+      `(a.scheduled_start AT TIME ZONE 'America/Sao_Paulo')::date >= $1::date`,
+      `(a.scheduled_start AT TIME ZONE 'America/Sao_Paulo')::date < ($2::date + interval '1 day')`,
     ];
     if (professionalId) {
       params.push(professionalId);
@@ -172,8 +172,8 @@ export async function getRangeAgenda(
   return withTenant({ userId, clinicId }, async (tx) => {
     const params: unknown[] = [from, to];
     const conditions: string[] = [
-      `a.scheduled_start >= $1::date`,
-      `a.scheduled_start < ($2::date + interval '1 day')`,
+      `(a.scheduled_start AT TIME ZONE 'America/Sao_Paulo')::date >= $1::date`,
+      `(a.scheduled_start AT TIME ZONE 'America/Sao_Paulo')::date < ($2::date + interval '1 day')`,
     ];
     if (professionalId) {
       params.push(professionalId);
