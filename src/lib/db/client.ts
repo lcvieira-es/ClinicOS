@@ -19,15 +19,11 @@ const globalForDb = globalThis as unknown as {
 };
 
 export function isPostgres(): boolean {
-  // Hyperdrive (Cloudflare) também fornece PostgreSQL
   const hyperdrive = (process.env as any)?.HYPERDRIVE ?? (globalThis as any)?.HYPERDRIVE;
   if (hyperdrive && typeof hyperdrive.connectionString === 'string') return true;
   return Boolean(process.env.DATABASE_URL || process.env.APP_DATABASE_URL);
 }
 
-/**
- * Resolve a connection string a partir do Hyperdrive (Cloudflare) ou env vars.
- */
 function resolveHyperdriveConnectionString(): string | undefined {
   try {
     const hd = (process.env as any)?.HYPERDRIVE ?? (globalThis as any)?.HYPERDRIVE;
@@ -49,10 +45,6 @@ function resolveConnectionString(preferApp: boolean): string | undefined {
   return process.env.DATABASE_URL ?? process.env.APP_DATABASE_URL;
 }
 
-/**
- * Produção/PostgreSQL: DATABASE_URL presente -> nunca toca em PGlite.
- * Desenvolvimento: usa PGlite local em .data/clinicos.
- */
 function pgliteDataDir(): string {
   const configured = process.env.PGLITE_DATA_DIR ?? '.data/clinicos';
   return path.isAbsolute(configured)
@@ -60,8 +52,6 @@ function pgliteDataDir(): string {
     : path.join(/*turbopackIgnore: true*/ process.cwd(), configured);
 }
 
-// Importação LAZY: o módulo PGlite (WASM) só é carregado em desenvolvimento,
-// nunca no bundle de produção do Vercel/Cloudflare.
 async function loadPgliteModule(): Promise<{ PGlite: new (dataDir: string) => any }> {
   if (!globalForDb.__clinicosPgliteModule) {
     globalForDb.__clinicosPgliteModule = import('@electric-sql/pglite') as Promise<any>;
@@ -85,19 +75,12 @@ export async function getPglite(): Promise<any> {
   return globalForDb.__clinicosPglite;
 }
 
-/**
- * Monta a configuração de SSL para o pool.
- * - DB_SSL=true força SSL.
- * - A presença de sslmode=require na connection string também ativa SSL.
- * - DB_SSL_REJECT_UNAUTHORIZED=false desativa a verificação do certificado
-<<<<<<< HEAD
- *   (útil em ambientes com certificado autoassinado, como alguns hosts).
- *
-=======
- *   (necessário para Supabase, que usa certificado autoassinado).
- */
->>>>>>> cda3908 (Atualização de funções no ClinicOS)
-function buildSsl(connectionString: string): { rejectUnauthorized: boolean } | undefined {
+function buildSsl(connectionString: string): { rejectUnauthorized: boolean } | false | undefined {
+  const isLocal =
+    connectionString.includes('localhost') ||
+    connectionString.includes('127.0.0.1');
+  if (isLocal) return false;
+
   const forced = process.env.DB_SSL === 'true';
   const fromUrl = /sslmode=require/i.test(connectionString);
   if (!forced && !fromUrl) return undefined;
@@ -105,25 +88,7 @@ function buildSsl(connectionString: string): { rejectUnauthorized: boolean } | u
     rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
   };
 }
-*/
-function buildSsl(rawConnectionString: string): PoolConfig['ssl'] {
-  const isLocal =
-    rawConnectionString.includes('localhost') ||
-    rawConnectionString.includes('127.0.0.1');
 
-  if (isLocal) {
-    return false;
-  }
-
-  return {
-    rejectUnauthorized: false,
-  };
-}
-
-/**
- * Remove sslmode da URL para evitar que o pg-connection-string sobrescreva
- * a configuração de SSL definida explicitamente (necessário para Supabase).
- */
 function stripSslMode(connectionString: string): string {
   return connectionString
     .replace(/[?&]sslmode=[^&]*/gi, (match) => (match.startsWith('?') ? '?' : ''))
@@ -174,12 +139,6 @@ function getAdminPool(): Pool {
   return globalForDb.__clinicosAdminPool;
 }
 
-/**
- * Consulta privilegiada, usada somente para bootstrap de autenticação
- * (localizar usuário por e-mail, memberships e vínculo de plataforma).
- * Nunca expõe dados clínicos: os casos de uso operacionais passam por
- * `withTenant`, que ativa a RLS.
- */
 export async function rawTrustedQuery<T = DbRow>(
   sql: string,
   params: unknown[] = [],
@@ -199,15 +158,11 @@ export interface TenantContext {
 }
 
 async function configureSession(query: SessionQuery, context: TenantContext) {
-  // Em produção o pool de aplicação já conecta como clinicos_app.
-  // No PGlite local conectamos como owner, então trocamos de papel para
-  // que a RLS seja realmente aplicada.
   if (!isPostgres()) {
     await query('set local role clinicos_app');
   } else if (process.env.DB_SET_ROLE !== 'false') {
     await query('set local role clinicos_app');
   }
-  // Garante o fuso horário da clínica em toda transação (evita conflitos por timezone).
   await query(`select set_config('app.user_id', $1, true)`, [context.userId]);
   await query(`select set_config('app.clinic_id', $1, true)`, [
     context.clinicId ?? '',
