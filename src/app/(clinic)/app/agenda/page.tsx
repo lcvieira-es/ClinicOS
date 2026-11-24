@@ -486,7 +486,7 @@ function WeekView({
   const byDay = new Map<string, typeof appointments>();
   for (const day of weekDays) byDay.set(day, []);
   for (const appointment of appointments) {
-    const day = new Date(String(appointment.scheduled_start).replace(' ', 'T')).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    const day = new Date(String(appointment.scheduled_start).replace(' ', 'T').replace('+00', 'Z')).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
     if (byDay.has(day)) byDay.get(day)!.push(appointment);
   }
 

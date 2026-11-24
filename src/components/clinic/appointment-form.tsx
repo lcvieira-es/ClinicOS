@@ -64,8 +64,8 @@ export function AppointmentForm({
     const end = new Date(start.getTime() + 30 * 60_000);
     const conflict = (busySlots || []).some((bs) => {
       if (bs.professional_id !== profId) return false;
-      const bsStart = new Date(bs.scheduled_start);
-      const bsEnd = new Date(bs.scheduled_end);
+      const bsStart = new Date(String(bs.scheduled_start).replace(' ', 'T').replace('+00', 'Z'));
+      const bsEnd = new Date(String(bs.scheduled_end).replace(' ', 'T').replace('+00', 'Z'));
       return bsStart < end && bsEnd > start;
     });
     setAvailError(conflict ? 'Horário ocupado para este profissional' : '');
@@ -138,8 +138,8 @@ export function AppointmentForm({
         const slotEnd = new Date(slotStart.getTime() + slot * 60_000);
         // check busy
         const isBusy = busy.some((b) => {
-          const bs = new Date(b.scheduled_start);
-          const be = new Date(b.scheduled_end);
+          const bs = new Date(String(b.scheduled_start).replace(' ', 'T').replace('+00', 'Z'));
+          const be = new Date(String(b.scheduled_end).replace(' ', 'T').replace('+00', 'Z'));
           return slotStart < be && slotEnd > bs;
         });
         if (!isBusy) times.push(timeStr);
