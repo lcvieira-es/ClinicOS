@@ -63,8 +63,8 @@ export function AppointmentForm({
     const end = new Date(start.getTime() + 30 * 60_000);
     const localConflict = (busySlots || []).some((bs) => {
       if (bs.professional_id !== profId) return false;
-      const bsStart = new Date(String(bs.scheduled_start).replace(' ', 'T').replace(/\+00(:00)?$/, 'Z'));
-      const bsEnd = new Date(String(bs.scheduled_end).replace(' ', 'T').replace(/\+00(:00)?$/, 'Z'));
+      const bsStart = new Date(String(bs.scheduled_start).slice(0, 10) + 'T' + String(bs.scheduled_start).slice(11, 16) + ':00Z');
+      const bsEnd = new Date(String(bs.scheduled_end).slice(0, 10) + 'T' + String(bs.scheduled_end).slice(11, 16) + ':00Z');
       return bsStart < end && bsEnd > start;
     });
     if (localConflict) {
