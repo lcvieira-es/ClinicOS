@@ -31,21 +31,21 @@ const numberFormatter = new Intl.NumberFormat('pt-BR');
 
 export function formatDate(value: string | Date | null | undefined): string {
   if (!value) return '—';
-  const date = value instanceof Date ? value : new Date(typeof value === 'string' ? value.replace(' ', 'T').replace('+00', 'Z') : value);
+  const date = value instanceof Date ? value : new Date(typeof value === 'string' ? String(value).trim().replace(' ', 'T').replace(/\+00(:00)?$/, 'Z') : value);
   if (Number.isNaN(date.getTime())) return '—';
   return dateFormatter.format(date);
 }
 
 export function formatDateTime(value: string | Date | null | undefined): string {
   if (!value) return '—';
-  const date = value instanceof Date ? value : new Date(typeof value === 'string' ? value.replace(' ', 'T').replace('+00', 'Z') : value);
+  const date = value instanceof Date ? value : new Date(typeof value === 'string' ? String(value).trim().replace(' ', 'T').replace(/\+00(:00)?$/, 'Z') : value);
   if (Number.isNaN(date.getTime())) return '—';
   return dateTimeFormatter.format(date);
 }
 
 export function formatTime(value: string | Date | null | undefined): string {
   if (!value) return '—';
-  const date = value instanceof Date ? value : new Date(typeof value === 'string' ? value.replace(' ', 'T').replace('+00', 'Z') : value);
+  const date = value instanceof Date ? value : new Date(typeof value === 'string' ? String(value).trim().replace(' ', 'T').replace(/\+00(:00)?$/, 'Z') : value);
   if (Number.isNaN(date.getTime())) return '—';
   return timeFormatter.format(date);
 }
