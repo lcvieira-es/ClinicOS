@@ -287,7 +287,7 @@ export function AppointmentForm({
           </Field>
 
           <Field label="Horário *" htmlFor="time">
-            <div className="">
+            <div className={availError ? "rounded-xl border border-red-500 shadow-[0_0_0_3px_rgba(220,38,38,0.3)] p-1" : ""}>
               {availableTimes.length > 0 ? (
                 <Select
                   id="time"
@@ -299,6 +299,7 @@ export function AppointmentForm({
                     setSelectedTime(t);
                     runAvailabilityCheck(professionalId, selectedDate, t);
                   }}
+                  className={availError ? "border-red-500" : ""}
                 >
                   <option value="" disabled>
                     Selecione…
@@ -310,7 +311,7 @@ export function AppointmentForm({
                   ))}
                 </Select>
               ) : (
-                <Input id="time" name="time" type="time" required defaultValue="09:00" onChange={(e) => { const t = e.target.value; setSelectedTime(t); runAvailabilityCheck(professionalId, selectedDate, t); }} />
+                <Input id="time" name="time" type="time" required defaultValue="09:00" className={availError ? "border-red-500" : ""} onChange={(e) => { const t = e.target.value; setSelectedTime(t); runAvailabilityCheck(professionalId, selectedDate, t); }} />
               )}
               {availError ? (
                 <p className="mt-1.5 text-xs font-medium text-red-700" role="alert">
