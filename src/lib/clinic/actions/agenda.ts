@@ -279,7 +279,7 @@ export async function createAppointmentAction(
     } catch (error) {
     if (isRedirectError(error)) throw error;
     console.error('[appt-err] ', error);
-    return { error: errorMessage(error) + ' :: ' + (error instanceof Error ? error.message : String(error)) };
+    return { error: errorMessage(error) };
   }
 }
 

@@ -287,7 +287,7 @@ export function AppointmentForm({
           </Field>
 
           <Field label="Horário *" htmlFor="time">
-            <div className="relative">
+            <div className="">
               {availableTimes.length > 0 ? (
                 <Select
                   id="time"
@@ -313,12 +313,9 @@ export function AppointmentForm({
                 <Input id="time" name="time" type="time" required defaultValue="09:00" onChange={(e) => { const t = e.target.value; setSelectedTime(t); runAvailabilityCheck(professionalId, selectedDate, t); }} />
               )}
               {availError ? (
-                <div
-                  className="absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 shadow-lg"
-                  role="alert"
-                >
+                <p className="mt-1.5 text-xs font-medium text-red-700" role="alert">
                   {availError}
-                </div>
+                </p>
               ) : null}
             </div>
           </Field>
