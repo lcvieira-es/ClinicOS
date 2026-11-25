@@ -87,8 +87,7 @@ export async function getDayAgenda(
   return withTenant({ userId, clinicId }, async (tx) => {
     const params: unknown[] = [date];
     const conditions: string[] = [
-      `a.scheduled_start::date >= $1::date`,
-      `a.scheduled_start::date < ($1::date + interval '1 day')`,
+      `a.scheduled_start::text like ($1::text || '%')`,
     ];
     if (professionalId) {
       params.push(professionalId);
@@ -134,8 +133,8 @@ export async function getWeekAgenda(
 
     const params: unknown[] = [mondayIso, sundayIso];
     const conditions: string[] = [
-      `a.scheduled_start::date >= $1::date`,
-      `a.scheduled_start::date < ($2::date + interval '1 day')`,
+      `a.scheduled_start::text >= ($1::text || ' 00:00:00')`,
+      `a.scheduled_start::text < ($2::text || ' 23:59:59')`,
     ];
     if (professionalId) {
       params.push(professionalId);
@@ -172,8 +171,8 @@ export async function getRangeAgenda(
   return withTenant({ userId, clinicId }, async (tx) => {
     const params: unknown[] = [from, to];
     const conditions: string[] = [
-      `a.scheduled_start::date >= $1::date`,
-      `a.scheduled_start::date < ($2::date + interval '1 day')`,
+      `a.scheduled_start::text >= ($1::text || ' 00:00:00')`,
+      `a.scheduled_start::text < ($2::text || ' 23:59:59')`,
     ];
     if (professionalId) {
       params.push(professionalId);
