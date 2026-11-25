@@ -20,11 +20,7 @@ import { formatCurrency, formatDate, formatTime } from '@/lib/format';
 export const metadata = { title: 'Consultas' };
 
 function isoToday(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 }
 
 export default async function ConsultasPage({

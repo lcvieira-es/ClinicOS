@@ -22,6 +22,31 @@ const timeFormatter = new Intl.DateTimeFormat('pt-BR', {
   timeZone: BR_TIME_ZONE,
 });
 
+/**
+ * Converte o valor vindo do banco em um `Date` correto.
+ *
+ * - Datas puras (`YYYY-MM-DD`) chegam como texto e o JS as interpreta como
+ *   UTC, o que as exibiria um dia antes no fuso de São Paulo. Ancoramos ao
+ *   meio-dia de Brasília para preservar o dia calendário.
+ * - O Postgres renderiza o fuso como `-03`, `-03:00`, `+00` ou `Z`; o JS só
+ *   aceita `Z` ou offsets no formato `±HH:MM`, então normalizamos.
+ * - Timestamps sem fuso são tratados como horário de Brasília.
+ */
+export function parseDateValue(value: string | Date): Date {
+  if (value instanceof Date) return value;
+  const raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return new Date(`${raw}T12:00:00-03:00`);
+  }
+  if (/^\d{4}-\d{2}-\d{2} 00:00:00$/.test(raw)) {
+    return new Date(`${raw.slice(0, 10)}T12:00:00-03:00`);
+  }
+  let iso = raw.replace(' ', 'T');
+  if (/[+-]\d{2}$/.test(iso)) iso = `${iso}:00`;
+  else if (!/(?:Z|[+-]\d{2}:\d{2})$/.test(iso)) iso = `${iso}-03:00`;
+  return new Date(iso.replace(/\+00:00$/, 'Z'));
+}
+
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
   currency: 'BRL',
@@ -31,23 +56,31 @@ const numberFormatter = new Intl.NumberFormat('pt-BR');
 
 export function formatDate(value: string | Date | null | undefined): string {
   if (!value) return '—';
-  const date = value instanceof Date ? value : new Date(typeof value === 'string' ? String(value).trim().replace(' ', 'T').replace(/\+00(:00)?$/, 'Z') : value);
+  const date = parseDateValue(value);
   if (Number.isNaN(date.getTime())) return '—';
   return dateFormatter.format(date);
 }
 
 export function formatDateTime(value: string | Date | null | undefined): string {
   if (!value) return '—';
-  const date = value instanceof Date ? value : new Date(typeof value === 'string' ? String(value).trim().replace(' ', 'T').replace(/\+00(:00)?$/, 'Z') : value);
+  const date = parseDateValue(value);
   if (Number.isNaN(date.getTime())) return '—';
   return dateTimeFormatter.format(date);
 }
 
 export function formatTime(value: string | Date | null | undefined): string {
   if (!value) return '—';
-  const date = value instanceof Date ? value : new Date(typeof value === 'string' ? String(value).trim().replace(' ', 'T').replace(/\+00(:00)?$/, 'Z') : value);
+  const date = parseDateValue(value);
   if (Number.isNaN(date.getTime())) return '—';
   return timeFormatter.format(date);
+}
+
+/** Data calendário (`YYYY-MM-DD`) no fuso de Brasília, para agrupar/diagnosticar. */
+export function isoDateOf(value: string | Date | null | undefined): string {
+  if (!value) return '';
+  const date = parseDateValue(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-CA', { timeZone: BR_TIME_ZONE }).format(date);
 }
 
 export function formatCurrency(value: number | string | null | undefined): string {

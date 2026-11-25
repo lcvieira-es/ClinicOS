@@ -22,7 +22,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Select } from '@/components/ui/input';
 import { Alert } from '@/components/ui/alert';
 import { Table, TableShell, Td, Th } from '@/components/ui/table';
-import { formatCurrency, formatDate, formatDateTime, formatTime } from '@/lib/format';
+import { formatCurrency, formatDate, formatDateTime, formatTime, isoDateOf } from '@/lib/format';
 
 export const metadata = { title: 'Agenda' };
 
@@ -486,7 +486,7 @@ function WeekView({
   const byDay = new Map<string, typeof appointments>();
   for (const day of weekDays) byDay.set(day, []);
   for (const appointment of appointments) {
-    const day = String(appointment.scheduled_start).slice(0, 10);
+    const day = isoDateOf(appointment.scheduled_start);
     if (byDay.has(day)) byDay.get(day)!.push(appointment);
   }
 

@@ -2,7 +2,12 @@ import 'server-only';
 
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { Pool, type PoolClient } from 'pg';
+import { Pool, types, type PoolClient } from 'pg';
+
+// Colunas `date` (OID 1082) são devolvidas como texto `YYYY-MM-DD` em vez de
+// `Date` criado à meia-noite local — assim a data exibida não muda conforme o
+// fuso do servidor (UTC na Vercel deslocaria a data em um dia).
+types.setTypeParser(1082, (value: string) => value);
 
 export type DbRow = Record<string, unknown>;
 export interface Queryable {
@@ -158,6 +163,9 @@ export interface TenantContext {
 }
 
 async function configureSession(query: SessionQuery, context: TenantContext) {
+  // Fuso fixo de Brasília: `current_date`, `now()` e renders de texto no banco
+  // passam a bater com o calendário da clínica em qualquer ambiente.
+  await query(`set local timezone = 'America/Sao_Paulo'`);
   if (!isPostgres()) {
     await query('set local role clinicos_app');
   } else if (process.env.DB_SET_ROLE !== 'false') {

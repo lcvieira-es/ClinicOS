@@ -3,6 +3,7 @@
 import { useActionState, useState, useMemo, useEffect } from 'react';
 import { LoaderCircle, Save } from 'lucide-react';
 import { createAppointmentAction, checkSlotAvailabilityAction } from '@/lib/clinic/actions/agenda';
+import { parseDateValue } from '@/lib/format';
 import type { ClinicFormState } from '@/lib/clinic/form-state';
 import type { ProfessionalSchedule } from '@/lib/clinic/disponibilidade';
 import { Button } from '@/components/ui/button';
@@ -63,8 +64,8 @@ export function AppointmentForm({
     const end = new Date(start.getTime() + 30 * 60_000);
     const localConflict = (busySlots || []).some((bs) => {
       if (bs.professional_id !== profId) return false;
-      const bsStart = new Date(String(bs.scheduled_start).slice(0, 10) + 'T' + String(bs.scheduled_start).slice(11, 16) + ':00Z');
-      const bsEnd = new Date(String(bs.scheduled_end).slice(0, 10) + 'T' + String(bs.scheduled_end).slice(11, 16) + ':00Z');
+      const bsStart = parseDateValue(bs.scheduled_start);
+      const bsEnd = parseDateValue(bs.scheduled_end);
       return bsStart < end && bsEnd > start;
     });
     if (localConflict) {
@@ -115,10 +116,13 @@ export function AppointmentForm({
       return;
     }
     const dates: string[] = [];
-    const today = new Date();
+    const todayIso = new Date().toLocaleDateString('en-CA', {
+      timeZone: 'America/Sao_Paulo',
+    });
+    const base = new Date(`${todayIso}T12:00:00`);
     for (let i = 0; i < 30; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
+      const d = new Date(base);
+      d.setDate(base.getDate() + i);
       const weekday = d.getDay();
       if (profSchedules.some((s) => s.weekday === weekday)) {
         const y = d.getFullYear();
@@ -150,12 +154,12 @@ export function AppointmentForm({
         const hh = String(Math.floor(m / 60)).padStart(2, '0');
         const mm = String(m % 60).padStart(2, '0');
         const timeStr = `${hh}:${mm}`;
-        const slotStart = new Date(`${selectedDate}T${timeStr}:00`);
+        const slotStart = new Date(`${selectedDate}T${timeStr}:00-03:00`);
         const slotEnd = new Date(slotStart.getTime() + slot * 60_000);
         // check busy
         const isBusy = busy.some((b) => {
-          const bs = new Date(String(b.scheduled_start).replace(' ', 'T').replace(/\+00(:00)?$/, 'Z'));
-          const be = new Date(String(b.scheduled_end).replace(' ', 'T').replace(/\+00(:00)?$/, 'Z'));
+          const bs = parseDateValue(b.scheduled_start);
+          const be = parseDateValue(b.scheduled_end);
           return slotStart < be && slotEnd > bs;
         });
         if (!isBusy) times.push(timeStr);
