@@ -41,7 +41,11 @@ export default async function ExameDetailPage({
       <PageHeader
         eyebrow="Clínico · Exames"
         title={order.patient_name}
-        description={`${order.priority} · ${formatDateTime(order.order_date)}`}
+        description={
+          <span className="text-[15px] text-ink-600">
+            {order.priority} · {formatDateTime(order.order_date)}
+          </span>
+        }
         actions={
           <ButtonLink href="/app/exames" variant="outline" size="sm">
             <ArrowLeft className="h-3.5 w-3.5" />
@@ -63,16 +67,19 @@ export default async function ExameDetailPage({
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Card>
-          <CardHeader title="Itens solicitados" description={`${order.items.length} exame(s)`} />
+          <CardHeader
+            title={<span className="text-[15px]">Itens solicitados</span>}
+            description={<span className="text-[15px]">{order.items.length} exame(s)</span>}
+          />
           <CardBody className="space-y-3">
             {order.items.map((item) => (
               <div key={item.id} className="rounded-xl border border-line bg-sky-25 p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-bold text-ink-900">{item.exam_name}</p>
+                  <p className="text-[15px] font-bold text-ink-900">{item.exam_name}</p>
                   <StatusBadge status={item.status} />
                 </div>
                 {item.tuss_code ? (
-                  <p className="text-[10px] text-ink-400">TUSS: {item.tuss_code}</p>
+                  <p className="text-[15px] text-ink-400">TUSS: {item.tuss_code}</p>
                 ) : null}
                 {canResult && item.status !== 'resultado_disponivel' ? (
                   <form action={releaseExamResultAction} className="mt-2 space-y-2">
@@ -81,22 +88,22 @@ export default async function ExameDetailPage({
                     <input
                       name="resultSummary"
                       placeholder="Resumo do resultado"
-                      className="h-8 w-full rounded-lg border border-[#737373] bg-white px-2 text-xs outline-none transition focus:border-navy-600"
+                      className="h-8 w-full rounded-lg border border-[#737373] bg-white px-2 text-[15px] outline-none transition focus:border-navy-600"
                     />
                     <textarea
                       name="resultText"
                       rows={2}
                       placeholder="Resultado detalhado"
-                      className="w-full rounded-lg border border-[#737373] bg-white px-2 py-1.5 text-xs outline-none transition focus:border-navy-600"
+                      className="w-full rounded-lg border border-[#737373] bg-white px-2 py-1.5 text-[15px] outline-none transition focus:border-navy-600"
                     />
                     <input
                       name="referenceRange"
                       placeholder="Intervalo de referência"
-                      className="h-8 w-full rounded-lg border border-[#737373] bg-white px-2 text-xs outline-none transition focus:border-navy-600"
+                      className="h-8 w-full rounded-lg border border-[#737373] bg-white px-2 text-[15px] outline-none transition focus:border-navy-600"
                     />
                     <button
                       type="submit"
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-navy-900 px-2 py-1.5 text-[10px] font-semibold text-white transition hover:bg-navy-800"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-navy-900 px-2 py-1.5 text-[15px] font-semibold text-white transition hover:bg-navy-800"
                     >
                       Liberar resultado
                     </button>
@@ -112,8 +119,8 @@ export default async function ExameDetailPage({
 
         <div className="space-y-5">
           <Card>
-            <CardHeader title="Dados da solicitação" />
-            <CardBody className="space-y-2 text-[11px]">
+            <CardHeader title={<span className="text-[15px]">Dados da solicitação</span>} />
+            <CardBody className="space-y-2 text-[15px]">
               <div className="flex justify-between gap-3">
                 <span className="text-ink-400">Paciente</span>
                 <span className="font-semibold text-ink-700">{order.patient_name}</span>
@@ -153,13 +160,13 @@ export default async function ExameDetailPage({
 
           {canCancel ? (
             <Card>
-              <CardHeader title="Zona de perigo" />
+              <CardHeader title={<span className="text-[15px]">Zona de perigo</span>} />
               <CardBody>
                 <form action={cancelExamOrderAction}>
                   <input type="hidden" name="orderId" value={order.id} />
                   <button
                     type="submit"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-danger px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-danger px-3 py-2 text-[15px] font-semibold text-white transition hover:bg-red-700"
                   >
                     Cancelar solicitação
                   </button>
