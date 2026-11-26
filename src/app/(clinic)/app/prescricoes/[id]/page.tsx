@@ -72,24 +72,24 @@ export default async function PrescricaoDetailPage({
             <div className="divide-y divide-line">
               {prescription.items.map((item) => (
                 <div key={item.id} className="px-5 py-3">
-                  <p className="text-xs font-bold text-ink-900">{item.medication_name}</p>
-                  <p className="text-[10px] text-ink-500">
+                  <p className="text-[15px] font-bold text-ink-900">{item.medication_name}</p>
+                  <p className="text-[15px] text-ink-500">
                     {[item.dose, item.frequency, item.duration, item.route, item.quantity ? `Qtd: ${item.quantity}` : null]
                       .filter(Boolean)
                       .join(' · ')}
                   </p>
                   {item.instructions ? (
-                    <p className="text-[10px] text-ink-400">{item.instructions}</p>
+                    <p className="text-[15px] text-ink-400">{item.instructions}</p>
                   ) : null}
                 </div>
               ))}
             </div>
             {prescription.notes ? (
               <div className="border-t border-line px-5 py-3">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-ink-400">
+                <p className="text-[15px] font-bold uppercase tracking-wide text-ink-400">
                   Observações
                 </p>
-                <p className="text-xs text-ink-700">{prescription.notes}</p>
+                <p className="text-[15px] text-ink-700">{prescription.notes}</p>
               </div>
             ) : null}
           </CardBody>
@@ -100,20 +100,20 @@ export default async function PrescricaoDetailPage({
             <CardHeader title="Status" description="Assinatura e verificação." />
             <CardBody className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <StatusBadge status={prescription.status} />
+                <StatusBadge status={prescription.status} className="text-[15px]" />
                 {prescription.verification_code ? (
-                  <Badge tone="mint" dot>
+                  <Badge tone="mint" dot className="text-[15px]">
                     {prescription.verification_code}
                   </Badge>
                 ) : null}
               </div>
               {prescription.signed_at ? (
-                <p className="text-[11px] text-ink-600">
+                <p className="text-[15px] text-ink-600">
                   Assinada em {formatDateTime(prescription.signed_at)}.
                 </p>
               ) : null}
               {prescription.content_hash ? (
-                <p className="font-mono text-[9px] leading-relaxed text-ink-400 break-all">
+                <p className="font-mono text-[15px] leading-relaxed text-ink-400 break-all">
                   Hash: {prescription.content_hash}
                 </p>
               ) : null}
@@ -123,7 +123,7 @@ export default async function PrescricaoDetailPage({
                   <input type="hidden" name="prescriptionId" value={prescription.id} />
                   <button
                     type="submit"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-navy-800"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-3 py-2 text-[15px] font-semibold text-white transition hover:bg-navy-800"
                   >
                     <LockKeyhole className="h-3.5 w-3.5" strokeWidth={2} />
                     Assinar e emitir
@@ -136,7 +136,7 @@ export default async function PrescricaoDetailPage({
                   <input type="hidden" name="prescriptionId" value={prescription.id} />
                   <button
                     type="submit"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-danger-soft/40 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-danger-soft"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-danger-soft/40 px-3 py-2 text-[15px] font-semibold text-red-600 transition hover:bg-danger-soft"
                   >
                     Cancelar prescrição
                   </button>

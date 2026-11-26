@@ -85,7 +85,7 @@ export default async function ProfessionalDetailPage({
                 canLinkUser={access.permissions.has('usuarios:edit')}
               />
             ) : (
-              <p className="text-xs text-ink-500">
+              <p className="text-[15px] text-ink-500">
                 Seu perfil permite apenas visualizar o cadastro.
               </p>
             )}
@@ -97,13 +97,13 @@ export default async function ProfessionalDetailPage({
             <CardHeader title="Situação" description="Status e vínculos." />
             <CardBody className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <StatusBadge status={professional.status} />
-                <Badge tone="neutral">
+                <StatusBadge status={professional.status} className="text-[15px]" />
+                <Badge tone="neutral" className="text-[15px]">
                   {formatCurrency(professional.consultation_price)} ·{' '}
                   {professional.default_duration_min} min
                 </Badge>
               </div>
-              <dl className="grid gap-2 text-[11px]">
+              <dl className="grid gap-2 text-[15px]">
                 <div className="flex justify-between gap-3">
                   <dt className="text-ink-400">Conselho</dt>
                   <dd className="font-semibold text-ink-700">
@@ -150,7 +150,7 @@ export default async function ProfessionalDetailPage({
                       <input type="hidden" name="status" value="inativo" />
                       <button
                         type="submit"
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-ink-700 transition hover:bg-sky-25"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-[15px] font-semibold text-ink-700 transition hover:bg-sky-25"
                       >
                         <UserX className="h-3.5 w-3.5" strokeWidth={2} />
                         Inativar profissional
@@ -166,7 +166,7 @@ export default async function ProfessionalDetailPage({
                       <input type="hidden" name="status" value="ativo" />
                       <button
                         type="submit"
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-ink-700 transition hover:bg-sky-25"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-[15px] font-semibold text-ink-700 transition hover:bg-sky-25"
                       >
                         <RotateCcw className="h-3.5 w-3.5" strokeWidth={2} />
                         Reativar profissional
