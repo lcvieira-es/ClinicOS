@@ -107,7 +107,7 @@ export default async function PatientDetailPage({
                 canSeeSensitive={canSeeSensitive}
               />
             ) : (
-              <p className="text-xs text-ink-500">
+              <p className="text-[15px] text-ink-500">
                 Seu perfil permite apenas visualizar o cadastro. Peça ao
                 administrador para alterar os dados.
               </p>
@@ -123,19 +123,19 @@ export default async function PatientDetailPage({
             />
             <CardBody className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
-                <StatusBadge status={patient.status} />
+                <StatusBadge status={patient.status} className="text-[15px]" />
                 {patient.lgpd_consent_at ? (
-                  <Badge tone="success" dot>
+                  <Badge tone="success" dot className="text-[15px]">
                     LGPD consentido em {formatDate(patient.lgpd_consent_at)}
                   </Badge>
                 ) : (
-                  <Badge tone="warning" dot>
+                  <Badge tone="warning" dot className="text-[15px]">
                     Consentimento pendente
                   </Badge>
                 )}
               </div>
 
-              <dl className="grid gap-2 text-[11px]">
+              <dl className="grid gap-2 text-[15px]">
                 <div className="flex justify-between gap-3">
                   <dt className="text-ink-400">CPF</dt>
                   <dd className="font-mono font-semibold text-ink-700">
@@ -183,7 +183,7 @@ export default async function PatientDetailPage({
                       <input type="hidden" name="status" value="inativo" />
                       <button
                         type="submit"
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-ink-700 transition hover:bg-sky-25"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-[15px] font-semibold text-ink-700 transition hover:bg-sky-25"
                       >
                         <UserX className="h-3.5 w-3.5" strokeWidth={2} />
                         Inativar cadastro
@@ -195,7 +195,7 @@ export default async function PatientDetailPage({
                       <input type="hidden" name="status" value="ativo" />
                       <button
                         type="submit"
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-ink-700 transition hover:bg-sky-25"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-[15px] font-semibold text-ink-700 transition hover:bg-sky-25"
                       >
                         <RotateCcw className="h-3.5 w-3.5" strokeWidth={2} />
                         Reativar cadastro
@@ -208,7 +208,7 @@ export default async function PatientDetailPage({
                       <input type="hidden" name="status" value="arquivado" />
                       <button
                         type="submit"
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-200 bg-warning-soft/40 px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-warning-soft"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-200 bg-warning-soft/40 px-3 py-2 text-[15px] font-semibold text-amber-700 transition hover:bg-warning-soft"
                       >
                         Arquivar cadastro
                       </button>
@@ -227,7 +227,7 @@ export default async function PatientDetailPage({
                       <input type="hidden" name="patientId" value={patient.id} />
                       <button
                         type="submit"
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-ink-700 transition hover:bg-sky-25"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-[15px] font-semibold text-ink-700 transition hover:bg-sky-25"
                       >
                         Revogar LGPD
                       </button>
@@ -240,7 +240,7 @@ export default async function PatientDetailPage({
                       <input type="hidden" name="patientId" value={patient.id} />
                       <button
                         type="submit"
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-navy-800"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-3 py-2 text-[15px] font-semibold text-white transition hover:bg-navy-800"
                       >
                         Registrar LGPD
                       </button>
@@ -258,7 +258,7 @@ export default async function PatientDetailPage({
             />
             <CardBody className="space-y-2">
               {consents.length === 0 ? (
-                <p className="text-xs text-ink-500">
+                <p className="text-[15px] text-ink-500">
                   Nenhum registro de consentimento.
                 </p>
               ) : (
@@ -268,20 +268,24 @@ export default async function PatientDetailPage({
                     className="rounded-xl border border-line bg-sky-25 px-3 py-2.5"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-[11px] font-bold text-ink-700">
+                      <p className="text-[15px] font-bold text-ink-700">
                         {consent.granted
                           ? 'Consentimento concedido'
                           : 'Consentimento revogado'}
                       </p>
-                      <Badge tone={consent.granted ? 'success' : 'danger'} dot>
+                      <Badge
+                        tone={consent.granted ? 'success' : 'danger'}
+                        dot
+                        className="text-[15px]"
+                      >
                         {consent.granted ? 'Concedido' : 'Revogado'}
                       </Badge>
                     </div>
-                    <p className="mt-0.5 text-[10px] text-ink-400">
+                    <p className="mt-0.5 text-[15px] text-ink-400">
                       {formatDateTime(consent.granted_at ?? consent.revoked_at)}
                     </p>
                     {consent.document_version ? (
-                      <p className="text-[10px] text-ink-400">
+                      <p className="text-[15px] text-ink-400">
                         Versão {consent.document_version}
                       </p>
                     ) : null}
