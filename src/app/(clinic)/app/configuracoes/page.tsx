@@ -51,7 +51,7 @@ export default async function ConfiguracoesPage({
 
       <Card>
         <CardHeader title="Dados da clínica" description="Identificação e contato." />
-        <CardBody>
+        <CardBody className="[&_label]:text-[15px] [&_p]:text-[15px] [&_input]:text-[15px] [&_button]:text-[15px]">
           {canEdit ? (
             <form action={updateClinicSettingsAction} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-3">
@@ -113,7 +113,7 @@ export default async function ConfiguracoesPage({
               <PhoneAutoFill />
               </form>
           ) : (
-            <dl className="grid gap-2 text-[11px]">
+            <dl className="grid gap-2 text-[15px]">
               <div className="flex justify-between gap-3">
                 <dt className="text-ink-400">Nome de exibição</dt>
                 <dd className="font-semibold text-ink-700">{settings.display_name}</dd>
