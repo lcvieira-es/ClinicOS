@@ -97,11 +97,11 @@ export default async function ProfessionalsPage({
                     >
                       <Avatar name={professional.full_name} size="sm" />
                       <span className="min-w-0">
-                        <span className="block truncate text-xs font-bold text-navy-900 group-hover:underline">
+                        <span className="block truncate text-[15px] font-bold text-navy-900 group-hover:underline">
                           {professional.full_name}
                         </span>
                         {professional.email ? (
-                          <span className="block truncate text-[10px] text-ink-400">
+                          <span className="block truncate text-[15px] text-ink-400">
                             {professional.email}
                           </span>
                         ) : null}
@@ -109,7 +109,7 @@ export default async function ProfessionalsPage({
                     </Link>
                   </Td>
                   <Td className="hidden md:table-cell">
-                    <span className="text-[11px] text-ink-600">
+                    <span className="text-[15px] text-ink-600">
                       {professional.council
                         ? `${professional.council} ${professional.council_number ?? ''}${professional.council_state ? `/${professional.council_state}` : ''}`
                         : '—'}
@@ -130,14 +130,14 @@ export default async function ProfessionalsPage({
                     </div>
                   </Td>
                   <Td className="hidden xl:table-cell">
-                    <span className="text-[11px] text-ink-600">
+                    <span className="text-[15px] text-ink-600">
                       {professional.unit_names.length > 0
                         ? professional.unit_names.join(', ')
                         : '—'}
                     </span>
                   </Td>
                   <Td className="hidden sm:table-cell">
-                    <span className="text-xs font-semibold text-navy-900">
+                    <span className="text-[15px] font-semibold text-navy-900">
                       {formatCurrency(professional.consultation_price)}
                     </span>
                   </Td>
@@ -147,7 +147,7 @@ export default async function ProfessionalsPage({
                   <Td className="text-right">
                     <Link
                       href={`/app/profissionais/${professional.id}`}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-navy-800 transition hover:text-navy-950"
+                      className="inline-flex items-center gap-1 text-[15px] font-bold text-navy-800 transition hover:text-navy-950"
                     >
                       Abrir
                     </Link>

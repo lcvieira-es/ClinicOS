@@ -80,7 +80,7 @@ export default async function PrescricoesPage({
             </Select>
             <button
               type="submit"
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-navy-900 px-4 text-xs font-semibold text-white transition hover:bg-navy-800"
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-navy-900 px-4 text-[15px] font-semibold text-white transition hover:bg-navy-800"
             >
               Filtrar
             </button>
@@ -124,20 +124,20 @@ export default async function PrescricoesPage({
                     <tr key={prescription.id}>
                       <Td>{formatDateTime(prescription.created_at)}</Td>
                       <Td>
-                        <p className="text-xs font-bold text-ink-900">
+                        <p className="text-[15px] font-bold text-ink-900">
                           {prescription.patient_name}
                         </p>
                       </Td>
                       <Td className="hidden md:table-cell">
-                        <span className="text-xs text-ink-600">
+                        <span className="text-[15px] text-ink-600">
                           {prescription.professional_name}
                         </span>
                       </Td>
-                      <Td className="capitalize text-xs">{prescription.type}</Td>
+                      <Td className="capitalize text-[15px]">{prescription.type}</Td>
                       <Td>
                         <StatusBadge status={prescription.status} />
                         {prescription.verification_code ? (
-                          <p className="mt-0.5 font-mono text-[9px] text-ink-400">
+                          <p className="mt-0.5 font-mono text-[15px] text-ink-400">
                             {prescription.verification_code}
                           </p>
                         ) : null}
@@ -148,7 +148,7 @@ export default async function PrescricoesPage({
                       <Td className="text-right">
                         <Link
                           href={`/app/prescricoes/${prescription.id}`}
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-navy-800 transition hover:text-navy-950"
+                          className="inline-flex items-center gap-1 text-[15px] font-bold text-navy-800 transition hover:text-navy-950"
                         >
                           Abrir
                         </Link>
