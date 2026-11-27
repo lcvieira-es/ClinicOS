@@ -187,13 +187,13 @@ export default async function UsuariosPage({
                             </div>
                             <button
                               type="submit"
-                              className="rounded-lg border border-line px-2 py-0.5 text-[10px] font-semibold text-ink-700 transition hover:bg-sky-100"
+                              className="rounded-lg border border-line px-2 py-0.5 text-[13px] font-semibold text-ink-700 transition hover:bg-sky-100"
                             >
                               Atualizar unidades
                             </button>
                           </form>
                         ) : (
-                          <span className="text-[11px] text-ink-600">
+                          <span className="text-[13px] text-ink-600">
                             {member.units.length > 0
                               ? member.units.map((u) => u.name).join(', ')
                               : '”'}
@@ -216,7 +216,7 @@ export default async function UsuariosPage({
                                 <input type="hidden" name="status" value="suspenso" />
                                 <button
                                   type="submit"
-                                  className="rounded-lg border border-amber-200 px-2 py-1 text-[10px] font-semibold text-amber-700 transition hover:bg-warning-soft"
+                                  className="rounded-lg border border-amber-200 px-2 py-1 text-[13px] font-semibold text-amber-700 transition hover:bg-warning-soft"
                                 >
                                   Suspender
                                 </button>
@@ -231,7 +231,7 @@ export default async function UsuariosPage({
                                 <input type="hidden" name="status" value="ativo" />
                                 <button
                                   type="submit"
-                                  className="rounded-lg border border-emerald-200 px-2 py-1 text-[10px] font-semibold text-emerald-700 transition hover:bg-success-soft"
+                                  className="rounded-lg border border-emerald-200 px-2 py-1 text-[13px] font-semibold text-emerald-700 transition hover:bg-success-soft"
                                 >
                                   Reativar
                                 </button>
@@ -246,7 +246,7 @@ export default async function UsuariosPage({
                                 />
                                 <button
                                   type="submit"
-                                  className="rounded-lg border border-red-200 px-2 py-1 text-[10px] font-semibold text-red-600 transition hover:bg-danger-soft"
+                                  className="rounded-lg border border-red-200 px-2 py-1 text-[13px] font-semibold text-red-600 transition hover:bg-danger-soft"
                                 >
                                   <Trash2 className="h-3 w-3" />
                                 </button>
@@ -298,7 +298,7 @@ export default async function UsuariosPage({
                         </p>
                       </Td>
                       <Td className="hidden sm:table-cell">
-                        <span className="text-[11px] text-ink-600">
+                        <span className="text-[13px] text-ink-600">
                           {invite.full_name ?? '”'}
                         </span>
                       </Td>
@@ -311,7 +311,7 @@ export default async function UsuariosPage({
                         <StatusBadge status={invite.status} />
                       </Td>
                       <Td className="hidden md:table-cell">
-                        <span className="text-[11px] text-ink-600">
+                        <span className="text-[13px] text-ink-600">
                           {formatDateTime(invite.expires_at)}
                         </span>
                       </Td>
@@ -326,13 +326,13 @@ export default async function UsuariosPage({
                               />
                               <button
                                 type="submit"
-                                className="rounded-lg border border-red-200 px-2 py-1 text-[10px] font-semibold text-red-600 transition hover:bg-danger-soft"
+                                className="rounded-lg border border-red-200 px-2 py-1 text-[13px] font-semibold text-red-600 transition hover:bg-danger-soft"
                               >
                                 Cancelar
                               </button>
                             </form>
                           ) : (
-                            <span className="text-[10px] text-ink-400">”</span>
+                            <span className="text-[13px] text-ink-400">”</span>
                           )}
                         </Td>
                       ) : null}
