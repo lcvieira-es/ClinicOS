@@ -65,7 +65,7 @@ export default async function ConsultaDetailPage({
         <Card>
           <CardHeader title="Dados do atendimento" />
           <CardBody>
-            <dl className="grid gap-3 text-[11px] sm:grid-cols-2">
+            <dl className="grid gap-3 text-[15px] sm:grid-cols-2">
               <div>
                 <dt className="text-ink-400">Paciente</dt>
                 <dd className="font-semibold text-ink-700">
@@ -105,7 +105,7 @@ export default async function ConsultaDetailPage({
               <div>
                 <dt className="text-ink-400">Status</dt>
                 <dd>
-                  <StatusBadge status={appointment.status} />
+                  <StatusBadge status={appointment.status} className="text-[15px]" />
                 </dd>
               </div>
               <div>
@@ -166,22 +166,22 @@ export default async function ConsultaDetailPage({
           <CardHeader title="Histórico de status" description="Trilha de mudanças." />
           <CardBody className="space-y-3">
             {history.length === 0 ? (
-              <p className="text-xs text-ink-500">Sem histórico registrado.</p>
+              <p className="text-[15px] text-ink-500">Sem histórico registrado.</p>
             ) : (
               <ol className="space-y-3">
                 {history.map((entry) => (
                   <li key={entry.id} className="flex gap-3">
                     <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-mint-400" />
                     <div className="min-w-0">
-                      <p className="text-[11px] font-bold text-ink-700">
+                      <p className="text-[15px] font-bold text-ink-700">
                         {entry.from_status ? `${entry.from_status} → ` : ''}
                         {entry.to_status}
                       </p>
-                      <p className="text-[10px] text-ink-400">
+                      <p className="text-[15px] text-ink-400">
                         {formatDateTime(entry.created_at)}
                       </p>
                       {entry.notes ? (
-                        <p className="text-[10px] text-ink-500">
+                        <p className="text-[15px] text-ink-500">
                           {entry.notes}
                         </p>
                       ) : null}
