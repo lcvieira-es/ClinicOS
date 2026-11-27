@@ -230,61 +230,59 @@ export default async function FinanceiroPage({
       </Card>
 
       {canDelete ? (
-        <>
-          <div
-            id="delete-modal"
-            className="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4"
-          >
-            <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-card">
-              <p className="text-[15px] font-semibold text-ink-900">
-                Confirmar exclusão!
-              </p>
-              <div className="mt-4 flex justify-end gap-2">
-                <button
-                  type="button"
-                  id="delete-cancel"
-                  className="rounded-lg border border-line px-4 py-2 text-[15px] font-semibold text-ink-700 transition hover:bg-sky-25"
-                >
-                  Não
-                </button>
-                <button
-                  type="button"
-                  id="delete-confirm"
-                  className="rounded-lg bg-danger px-4 py-2 text-[15px] font-semibold text-white transition hover:bg-red-700"
-                >
-                  Sim
-                </button>
-              </div>
-            </div>
-          </div>
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                (function () {
-                  var modal = document.getElementById('delete-modal');
-                  var confirmBtn = document.getElementById('delete-confirm');
-                  var cancelBtn = document.getElementById('delete-cancel');
-                  var pendingForm = null;
-                  function open(form) { pendingForm = form; modal.classList.remove('hidden'); modal.classList.add('flex'); }
-                  function close() { modal.classList.add('hidden'); modal.classList.remove('flex'); pendingForm = null; }
-                  document.addEventListener('click', function (e) {
-                    var btn = e.target && e.target.closest ? e.target.closest('.delete-trigger') : null;
-                    if (!btn) return;
-                    e.preventDefault();
-                    var form = btn.closest('form');
-                    open(form);
-                  });
-                  if (cancelBtn) cancelBtn.addEventListener('click', close);
-                  if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
-                  if (confirmBtn) confirmBtn.addEventListener('click', function () {
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                var modal = null;
+                var pendingForm = null;
+                function ensureModal() {
+                  if (modal) return modal;
+                  modal = document.createElement('div');
+                  modal.id = 'delete-modal';
+                  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);padding:16px;';
+                  var card = document.createElement('div');
+                  card.style.cssText = 'width:100%;max-width:384px;border-radius:12px;background:#fff;padding:24px;box-shadow:0 10px 25px rgba(0,0,0,0.15);';
+                  var title = document.createElement('p');
+                  title.style.cssText = 'font-size:15px;font-weight:600;color:#111827;margin:0;';
+                  title.textContent = 'Confirmar exclusão!';
+                  var row = document.createElement('div');
+                  row.style.cssText = 'margin-top:16px;display:flex;justify-content:flex-end;gap:8px;';
+                  var noBtn = document.createElement('button');
+                  noBtn.type = 'button';
+                  noBtn.style.cssText = 'border-radius:8px;border:1px solid #e2e8f0;padding:8px 16px;font-size:15px;font-weight:600;color:#334155;background:#fff;cursor:pointer;';
+                  noBtn.textContent = 'Não';
+                  var yesBtn = document.createElement('button');
+                  yesBtn.type = 'button';
+                  yesBtn.style.cssText = 'border-radius:8px;background:#dc2626;padding:8px 16px;font-size:15px;font-weight:600;color:#fff;cursor:pointer;border:none;';
+                  yesBtn.textContent = 'Sim';
+                  row.appendChild(noBtn);
+                  row.appendChild(yesBtn);
+                  card.appendChild(title);
+                  card.appendChild(row);
+                  modal.appendChild(card);
+                  document.body.appendChild(modal);
+                  noBtn.addEventListener('click', close);
+                  modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+                  yesBtn.addEventListener('click', function () {
                     if (pendingForm) { pendingForm.requestSubmit(); }
                     close();
                   });
-                })();
-              `,
-            }}
-          />
-        </>
+                  return modal;
+                }
+                function open(form) { pendingForm = form; var m = ensureModal(); m.style.display = 'flex'; }
+                function close() { if (modal) modal.style.display = 'none'; pendingForm = null; }
+                document.addEventListener('click', function (e) {
+                  var btn = e.target && e.target.closest ? e.target.closest('.delete-trigger') : null;
+                  if (!btn) return;
+                  e.preventDefault();
+                  var form = btn.closest('form');
+                  open(form);
+                });
+              })();
+            `,
+          }}
+        />
       ) : null}
     </div>
   );
