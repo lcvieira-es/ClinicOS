@@ -108,13 +108,13 @@ export default async function UsuariosPage({
                     <Th className="text-[16px]">Usuário</Th>
                     <Th className="hidden md:table-cell text-[16px]">Perfil</Th>
                     <Th className="hidden lg:table-cell text-[16px]">Unidades</Th>
-                    <Th className="hidden xl:table-cell text-[16px]">Status</Th>
-                    <Th className="text-[16px]">Ações</Th>
+                    <Th className="text-[16px]">Status</Th>
+                    {canEdit ? <Th className="text-right text-[16px]">Ações</Th> : null}
                   </tr>
                 </thead>
                 <tbody>
                   {members.map((member) => (
-                    <tr key={member.membership_id}>s
+                    <tr key={member.membership_id}>
                       <Td>
                         <p className="text-xs font-bold text-ink-900">
                           {member.full_name}
