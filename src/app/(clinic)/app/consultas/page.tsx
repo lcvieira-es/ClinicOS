@@ -147,7 +147,7 @@ export default async function ConsultasPage({
                     <div className="flex flex-wrap items-center gap-1">
                       <Link
                         href={`/app/consultas/${appointment.id}`}
-                        className="rounded-lg border border-line px-2 py-1 text-[15px] font-semibold text-ink-700 transition hover:bg-sky-25"
+                        className="rounded-lg border border-line px-2 py-1 text-[13px] font-semibold text-ink-700 transition hover:bg-sky-25"
                       >
                         Detalhes
                       </Link>
@@ -163,7 +163,7 @@ export default async function ConsultasPage({
                           <input type="hidden" name="toStatus" value="aguardando" />
                           <button
                             type="submit"
-                            className="rounded-lg bg-navy-900 px-2 py-1 text-[15px] font-semibold text-white transition hover:bg-navy-800"
+                            className="rounded-lg bg-navy-900 px-2 py-1 text-[13px] font-semibold text-white transition hover:bg-navy-800"
                           >
                             Check-in
                           </button>
@@ -183,7 +183,7 @@ export default async function ConsultasPage({
                           />
                           <button
                             type="submit"
-                            className="rounded-lg bg-mint-400 px-2 py-1 text-[15px] font-semibold text-navy-950 transition hover:bg-mint-300"
+                            className="rounded-lg bg-mint-400 px-2 py-1 text-[13px] font-semibold text-navy-950 transition hover:bg-mint-300"
                           >
                             Iniciar
                           </button>
@@ -203,7 +203,7 @@ export default async function ConsultasPage({
                           />
                           <button
                             type="submit"
-                            className="rounded-lg bg-emerald-600 px-2 py-1 text-[15px] font-semibold text-white transition hover:bg-emerald-700"
+                            className="rounded-lg bg-emerald-600 px-2 py-1 text-[13px] font-semibold text-white transition hover:bg-emerald-700"
                           >
                             Concluir
                           </button>
@@ -222,7 +222,7 @@ export default async function ConsultasPage({
                           <input type="hidden" name="toStatus" value="faltou" />
                           <button
                             type="submit"
-                            className="rounded-lg border border-amber-200 px-2 py-1 text-[15px] font-semibold text-amber-700 transition hover:bg-warning-soft"
+                            className="rounded-lg border border-amber-200 px-2 py-1 text-[13px] font-semibold text-amber-700 transition hover:bg-warning-soft"
                           >
                             Faltou
                           </button>
@@ -238,7 +238,7 @@ export default async function ConsultasPage({
                           <input type="hidden" name="toStatus" value="cancelada" />
                           <button
                             type="submit"
-                            className="rounded-lg border border-red-200 px-2 py-1 text-[15px] font-semibold text-red-600 transition hover:bg-danger-soft"
+                            className="rounded-lg border border-red-200 px-2 py-1 text-[13px] font-semibold text-red-600 transition hover:bg-danger-soft"
                           >
                             Cancelar
                           </button>

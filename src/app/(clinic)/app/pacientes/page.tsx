@@ -277,7 +277,7 @@ export default async function PatientsPage({
                     <Td className="text-right">
                       <Link
                         href={`/app/pacientes/${patient.id}`}
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-navy-800 transition hover:text-navy-950"
+                        className="inline-flex items-center gap-1 text-[13px] font-bold text-navy-800 transition hover:text-navy-950"
                       >
                         Abrir
                         <Search className="h-3 w-3" />
