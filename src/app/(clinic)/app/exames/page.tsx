@@ -113,7 +113,7 @@ export default async function ExamesPage({
                     <Th className="text-[16px]">Data</Th>
                     <Th className="text-[16px]">Paciente</Th>
                     <Th className="hidden md:table-cell text-[16px]">Profissional</Th>
-                    <Th>Prioridade</Th>
+                    <Th className="text-[16px]">Prioridade</Th>
                     <Th className="text-[16px]">Status</Th>
                     <Th className="hidden sm:table-cell text-[16px]">Itens</Th>
                     <Th className="text-right text-[16px]">Ação</Th>

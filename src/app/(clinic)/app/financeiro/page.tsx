@@ -200,7 +200,7 @@ export default async function FinanceiroPage({
                                 <input type="hidden" name="transactionId" value={transaction.id} />
                                 <button
                                   type="submit"
-                                  className="rounded-lg bg-emerald-600 px-2 py-1 text-[10px] font-semibold text-white transition hover:bg-emerald-700"
+                                  className="rounded-lg bg-emerald-600 px-2 py-1 text-[13px] font-semibold text-white transition hover:bg-emerald-700"
                                 >
                                   Baixar
                                 </button>
@@ -211,7 +211,7 @@ export default async function FinanceiroPage({
                                 <input type="hidden" name="transactionId" value={transaction.id} />
                                 <button
                                   type="submit"
-                                  className="rounded-lg border border-red-200 px-2 py-1 text-[10px] font-semibold text-red-600 transition hover:bg-danger-soft"
+                                  className="rounded-lg border border-red-200 px-2 py-1 text-[13px] font-semibold text-red-600 transition hover:bg-danger-soft"
                                 >
                                   Excluir
                                 </button>
