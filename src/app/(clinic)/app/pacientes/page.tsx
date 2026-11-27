@@ -214,7 +214,7 @@ export default async function PatientsPage({
                   <Th className="hidden md:table-cell text-[16px]">CPF</Th>
                   <Th className="hidden lg:table-cell text-[16px]">Contato</Th>
                   <Th className="hidden xl:table-cell text-[16px]">Convênio</Th>
-                  <Th className="text-[16px]">Situação</Th>
+                  <Th className="hidden xl:table-cell text-[16px]">Situação</Th>
                   <Th className="hidden sm:table-cell text-[16px]">LGPD</Th>
                   <Th className="text-right text-[16px]">Ação</Th>
                 </tr>
