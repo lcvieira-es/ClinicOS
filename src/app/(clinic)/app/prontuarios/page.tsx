@@ -114,13 +114,13 @@ export default async function ProntuariosPage({
               <Table>
                 <thead>
                   <tr>
-                    <Th>Data</Th>
-                    <Th>Paciente</Th>
-                    <Th className="hidden md:table-cell">Profissional</Th>
-                    <Th className="hidden lg:table-cell">Queixa principal</Th>
-                    <Th>Versão</Th>
-                    <Th>Status</Th>
-                    <Th className="text-right">Ação</Th>
+                    <Th className="text-[16px]">Data</Th>
+                    <Th className="text-[16px]">Paciente</Th>
+                    <Th className="hidden md:table-cell text-[16px]">Profissional</Th>
+                    <Th className="hidden lg:table-cell text-[16px]">Queixa principal</Th>
+                    <Th className="text-[16px]">Versão</Th>
+                    <Th className="text-[16px]">Status</Th>
+                    <Th className="text-right text-[16px]">Ação</Th>
                   </tr>
                 </thead>
                 <tbody>

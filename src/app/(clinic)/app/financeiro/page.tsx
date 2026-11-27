@@ -153,13 +153,13 @@ export default async function FinanceiroPage({
               <Table>
                 <thead>
                   <tr>
-                    <Th>Vencimento</Th>
-                    <Th>Descrição</Th>
-                    <Th className="hidden md:table-cell">Categoria</Th>
-                    <Th>Tipo</Th>
-                    <Th>Status</Th>
-                    <Th className="text-right">Valor</Th>
-                    {canEdit ? <Th className="text-right">Ações</Th> : null}
+                    <Th className="text-[16px]">Vencimento</Th>
+                    <Th className="text-[16px]">Descrição</Th>
+                    <Th className="hidden md:table-cell text-[16px]">Categoria</Th>
+                    <Th className="text-[16px]">Tipo</Th>
+                    <Th className="text-[16px]">Status</Th>
+                    <Th className="text-right text-[16px]">Valor</Th>
+                    {canEdit ? <Th className="text-right text-[16px]">Ações</Th> : null}
                   </tr>
                 </thead>
                 <tbody>
