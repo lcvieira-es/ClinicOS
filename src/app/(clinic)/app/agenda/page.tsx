@@ -349,14 +349,14 @@ function DayView({
           <Table>
             <thead>
               <tr>
-                <Th>Horário</Th>
-                <Th>Paciente</Th>
-                <Th className="hidden md:table-cell">Profissional</Th>
-                <Th className="hidden lg:table-cell">Unidade</Th>
-                <Th>Tipo</Th>
-                <Th>Status</Th>
-                <Th className="hidden sm:table-cell">Valor</Th>
-                <Th className="text-right">Ações</Th>
+                <Th className="text-[16px]">Horário</Th>
+                <Th className="text-[16px]">Paciente</Th>
+                <Th className="hidden md:table-cell text-[16px]">Profissional</Th>
+                <Th className="hidden lg:table-cell text-[16px]">Unidade</Th>
+                <Th className="text-[16px]">Tipo</Th>
+                <Th className="text-[16px]">Status</Th>
+                <Th className="hidden sm:table-cell text-[16px]">Valor</Th>
+                <Th className="text-right text-[16px]">Ações</Th>
               </tr>
             </thead>
             <tbody>
@@ -407,7 +407,7 @@ function DayView({
                           <input type="hidden" name="toStatus" value="aguardando" />
                           <button
                             type="submit"
-                            className="rounded-lg bg-navy-900 px-2 py-1 text-[15px] font-semibold text-white transition hover:bg-navy-800"
+                            className="rounded-lg bg-navy-900 px-2 py-1 text-[13px] font-semibold text-white transition hover:bg-navy-800"
                           >
                             Check-in
                           </button>
@@ -427,7 +427,7 @@ function DayView({
                           />
                           <button
                             type="submit"
-                            className="rounded-lg bg-mint-400 px-2 py-1 text-[15px] font-semibold text-navy-950 transition hover:bg-mint-300"
+                            className="rounded-lg bg-mint-400 px-2 py-1 text-[13px] font-semibold text-navy-950 transition hover:bg-mint-300"
                           >
                             Iniciar
                           </button>
@@ -443,7 +443,7 @@ function DayView({
                           <input type="hidden" name="toStatus" value="realizada" />
                           <button
                             type="submit"
-                            className="rounded-lg bg-emerald-600 px-2 py-1 text-[15px] font-semibold text-white transition hover:bg-emerald-700"
+                            className="rounded-lg bg-emerald-600 px-2 py-1 text-[13px] font-semibold text-white transition hover:bg-emerald-700"
                           >
                             Concluir
                           </button>
@@ -458,7 +458,7 @@ function DayView({
                           />
                           <button
                             type="submit"
-                            className="rounded-lg border border-red-200 px-2 py-1 text-[15px] font-semibold text-red-600 transition hover:bg-danger-soft"
+                            className="rounded-lg border border-red-200 px-2 py-1 text-[13px] font-semibold text-red-600 transition hover:bg-danger-soft"
                           >
                             Cancelar
                           </button>

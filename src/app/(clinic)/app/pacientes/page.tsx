@@ -210,13 +210,13 @@ export default async function PatientsPage({
             <Table>
               <thead>
                 <tr>
-                  <Th>Paciente</Th>
-                  <Th className="hidden md:table-cell">CPF</Th>
-                  <Th className="hidden lg:table-cell">Contato</Th>
-                  <Th className="hidden xl:table-cell">Convênio</Th>
-                  <Th>Situação</Th>
-                  <Th className="hidden sm:table-cell">LGPD</Th>
-                  <Th className="text-right">Ação</Th>
+                  <Th className="text-[16px]">Paciente</Th>
+                  <Th className="hidden md:table-cell text-[16px]">CPF</Th>
+                  <Th className="hidden lg:table-cell text-[16px]">Contato</Th>
+                  <Th className="hidden xl:table-cell text-[16px]">Convênio</Th>
+                  <Th className="text-[16px]">Situação</Th>
+                  <Th className="hidden sm:table-cell text-[16px]">LGPD</Th>
+                  <Th className="text-right text-[16px]">Ação</Th>
                 </tr>
               </thead>
               <tbody>

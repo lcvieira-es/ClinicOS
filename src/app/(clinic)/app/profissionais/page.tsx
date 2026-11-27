@@ -78,13 +78,13 @@ export default async function ProfessionalsPage({
           <Table>
             <thead>
               <tr>
-                <Th>Profissional</Th>
-                <Th className="hidden md:table-cell">Conselho</Th>
-                <Th className="hidden lg:table-cell">Especialidades</Th>
-                <Th className="hidden xl:table-cell">Unidades</Th>
-                <Th className="hidden sm:table-cell">Valor consulta</Th>
-                <Th>Status</Th>
-                <Th className="text-right">Ação</Th>
+                <Th className="text-[16px]">Profissional</Th>
+                <Th className="hidden md:table-cell text-[16px]">Conselho</Th>
+                <Th className="hidden lg:table-cell text-[16px]">Especialidades</Th>
+                <Th className="hidden xl:table-cell text-[16px]">Unidades</Th>
+                <Th className="hidden sm:table-cell text-[16px]">Valor consulta</Th>
+                <Th className="text-[16px]">Status</Th>
+                <Th className="text-right text-[16px]">Ação</Th>
               </tr>
             </thead>
             <tbody>

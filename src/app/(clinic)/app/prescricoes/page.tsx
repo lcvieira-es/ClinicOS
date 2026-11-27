@@ -110,13 +110,13 @@ export default async function PrescricoesPage({
               <Table>
                 <thead>
                   <tr>
-                    <Th>Data</Th>
-                    <Th>Paciente</Th>
-                    <Th className="hidden md:table-cell">Profissional</Th>
-                    <Th>Tipo</Th>
-                    <Th>Status</Th>
-                    <Th className="hidden sm:table-cell">Itens</Th>
-                    <Th className="text-right">Ação</Th>
+                    <Th className="text-[16px]">Data</Th>
+                    <Th className="text-[16px]">Paciente</Th>
+                    <Th className="hidden md:table-cell text-[16px]">Profissional</Th>
+                    <Th className="text-[16px]">Tipo</Th>
+                    <Th className="text-[16px]">Status</Th>
+                    <Th className="hidden sm:table-cell text-[16px]">Itens</Th>
+                    <Th className="text-right text-[16px]">Ação</Th>
                   </tr>
                 </thead>
                 <tbody>
