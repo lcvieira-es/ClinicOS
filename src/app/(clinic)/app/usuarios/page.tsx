@@ -106,10 +106,10 @@ export default async function UsuariosPage({
                 <thead>
                   <tr>
                     <Th>Usuário</Th>
-                    <Th className="hidden md:table-cell">Perfil</Th>
-                    <Th className="hidden lg:table-cell">Unidades</Th>
-                    <Th>Status</Th>
-                    {canEdit ? <Th className="text-right">Ações</Th> : null}
+                    <Th className="hidden md:table-cell text-[16px]">Perfil</Th>
+                    <Th className="hidden lg:table-cell text-[16x]">Unidades</Th>
+                    <Th className="hidden xl:table-cell text-[16px]">Status</Th>
+                    <Th className="text-right text-[16px]">Ações</Th>
                   </tr>
                 </thead>
                 <tbody>

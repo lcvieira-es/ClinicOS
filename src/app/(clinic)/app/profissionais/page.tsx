@@ -147,7 +147,7 @@ export default async function ProfessionalsPage({
                   <Td className="text-right">
                     <Link
                       href={`/app/profissionais/${professional.id}`}
-                      className="inline-flex items-center gap-1 text-[15px] font-bold text-navy-800 transition hover:text-navy-950"
+                      className="inline-flex items-center gap-1 text-[13px] font-bold text-navy-800 transition hover:text-navy-950"
                     >
                       Abrir
                     </Link>
