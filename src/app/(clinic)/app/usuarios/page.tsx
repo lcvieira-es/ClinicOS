@@ -105,7 +105,7 @@ export default async function UsuariosPage({
               <Table>
                 <thead>
                   <tr>
-                    <Th className="text-left text-[16px]">Usuário</Th>
+                    <Th className="text-[16px]">Usuário</Th>
                     <Th className="hidden md:table-cell text-[16px]">Perfil</Th>
                     <Th className="hidden lg:table-cell text-[16px]">Unidades</Th>
                     <Th className="hidden xl:table-cell text-[16px]">Status</Th>
