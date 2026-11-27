@@ -143,7 +143,7 @@ export default async function ExamesPage({
                       <Td className="text-right">
                         <Link
                           href={`/app/exames/${order.id}`}
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-navy-800 transition hover:text-navy-950"
+                          className="inline-flex items-center gap-1 text-[13px] font-bold text-navy-800 transition hover:text-navy-950"
                         >
                           Abrir
                         </Link>
