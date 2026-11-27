@@ -207,11 +207,11 @@ export default async function FinanceiroPage({
                               </form>
                             ) : null}
                             {canDelete ? (
-                              <form action={deleteTransactionAction}>
+                              <form action={deleteTransactionAction} className="inline">
                                 <input type="hidden" name="transactionId" value={transaction.id} />
                                 <button
                                   type="submit"
-                                  className="rounded-lg border border-red-200 px-2 py-1 text-[10px] font-semibold text-red-600 transition hover:bg-danger-soft"
+                                  className="delete-trigger rounded-lg border border-red-200 px-2 py-1 text-[10px] font-semibold text-red-600 transition hover:bg-danger-soft"
                                 >
                                   Excluir
                                 </button>
@@ -229,6 +229,63 @@ export default async function FinanceiroPage({
         </CardBody>
       </Card>
 
+      {canDelete ? (
+        <>
+          <div
+            id="delete-modal"
+            className="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4"
+          >
+            <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-card">
+              <p className="text-[15px] font-semibold text-ink-900">
+                Confirmar exclusão!
+              </p>
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  id="delete-cancel"
+                  className="rounded-lg border border-line px-4 py-2 text-[15px] font-semibold text-ink-700 transition hover:bg-sky-25"
+                >
+                  Não
+                </button>
+                <button
+                  type="button"
+                  id="delete-confirm"
+                  className="rounded-lg bg-danger px-4 py-2 text-[15px] font-semibold text-white transition hover:bg-red-700"
+                >
+                  Sim
+                </button>
+              </div>
+            </div>
+          </div>
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                (function () {
+                  var modal = document.getElementById('delete-modal');
+                  var confirmBtn = document.getElementById('delete-confirm');
+                  var cancelBtn = document.getElementById('delete-cancel');
+                  var pendingForm = null;
+                  function open(form) { pendingForm = form; modal.classList.remove('hidden'); modal.classList.add('flex'); }
+                  function close() { modal.classList.add('hidden'); modal.classList.remove('flex'); pendingForm = null; }
+                  document.addEventListener('click', function (e) {
+                    var btn = e.target && e.target.closest ? e.target.closest('.delete-trigger') : null;
+                    if (!btn) return;
+                    e.preventDefault();
+                    var form = btn.closest('form');
+                    open(form);
+                  });
+                  if (cancelBtn) cancelBtn.addEventListener('click', close);
+                  if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+                  if (confirmBtn) confirmBtn.addEventListener('click', function () {
+                    if (pendingForm) { pendingForm.requestSubmit(); }
+                    close();
+                  });
+                })();
+              `,
+            }}
+          />
+        </>
+      ) : null}
     </div>
   );
 }
