@@ -126,29 +126,29 @@ export default async function ProntuariosPage({
                 <tbody>
                   {records.map((record) => (
                     <tr key={record.id}>
-                      <Td>{formatDateTime(record.record_date)}</Td>
+                      <Td className="text-[13px]">{formatDateTime(record.record_date)}</Td>
                       <Td>
-                        <p className="text-xs font-bold text-ink-900">
+                        <p className="text-[13px] font-bold text-ink-900">
                           {record.patient_name}
                         </p>
                       </Td>
                       <Td className="hidden md:table-cell">
-                        <span className="text-xs text-ink-600">
+                        <span className="text-[13px] text-ink-600">
                           {record.professional_name}
                         </span>
                       </Td>
                       <Td className="hidden lg:table-cell">
-                        <span className="text-xs text-ink-600">
+                        <span className="text-[13px] text-ink-600">
                           {record.chief_complaint ?? '—'}
                         </span>
                       </Td>
                       <Td>
-                        <Badge tone="neutral">v{record.version}</Badge>
+                        <Badge tone="neutral" className="text-[13px]">v{record.version}</Badge>
                       </Td>
                       <Td>
-                        <StatusBadge status={record.status} />
+                        <StatusBadge status={record.status} className="text-[13px]" />
                         {record.verification_code ? (
-                          <p className="mt-0.5 font-mono text-[9px] text-ink-400">
+                          <p className="mt-0.5 font-mono text-[13px] text-ink-400">
                             {record.verification_code}
                           </p>
                         ) : null}
@@ -156,7 +156,7 @@ export default async function ProntuariosPage({
                       <Td className="text-right">
                         <Link
                           href={`/app/prontuarios/${record.id}`}
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-navy-800 transition hover:text-navy-950"
+                          className="inline-flex items-center gap-1 text-[13px] font-bold text-navy-800 transition hover:text-navy-950"
                         >
                           Abrir
                         </Link>
